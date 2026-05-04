@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Tuitional Finance backup at 02:30 UTC
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+Persistent=true
+Unit=tuitional-backup.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,55 @@
+# Tuitional Finance — production-shape docker-compose.
+#
+# Used as a reference when bringing the stack up on the VPS via systemd.
+# The actual production deployment runs each container under its own
+# systemd unit (see infra/systemd/) so docker-compose itself isn't on the
+# critical path. This file makes it easy to repro the topology locally
+# end-to-end.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: tuitional
+      POSTGRES_USER: tuitional
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  backend:
+    build:
+      context: ../..
+      dockerfile: infra/docker/backend.Dockerfile
+    restart: always
+    environment:
+      APP_ENV: production
+      APP_PORT: 3002
+      DATABASE_URL: postgresql+psycopg://tuitional:${POSTGRES_PASSWORD}@postgres:5432/tuitional
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY}
+      CFO_USERNAME: ${CFO_USERNAME:-cfo}
+      CFO_PASSWORD: ${CFO_PASSWORD:?set CFO_PASSWORD}
+      LOG_FORMAT: json
+    depends_on:
+      - postgres
+
+  frontend:
+    build:
+      context: ../..
+      dockerfile: infra/docker/frontend.Dockerfile
+    restart: always
+    ports:
+      - "443:8080"
+    depends_on:
+      - backend
+
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    restart: always
+    volumes:
+      - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+
+volumes:
+  pgdata: {}

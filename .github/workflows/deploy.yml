@@ -1,0 +1,90 @@
+name: Deploy
+
+# IMPORTANT: This workflow does NOT auto-deploy to your VPS.
+# It produces a build artifact (a tarball + a versioned image, optionally)
+# that you pull and install on the VPS following infra/deploy.md.
+#
+# Auto-deploy is intentionally not configured because:
+#   1. You manage the VPS and other projects run on it
+#   2. Finance system updates need a human in the loop
+#   3. Database migrations need supervised application
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version tag (e.g. v0.2.0)"
+        required: true
+
+jobs:
+  build:
+    name: Build deployable artifact
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write     # to upload release assets
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VER="${{ github.event.inputs.version }}"
+          else
+            VER="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install uv
+      - name: Install Python deps
+        run: uv sync --no-dev
+
+      # Frontend build — enabled in Phase 5
+      - name: Build frontend
+        if: ${{ false }}
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Assemble artifact
+        run: |
+          mkdir -p artifact
+          cp -r src docs migrations infra pyproject.toml uv.lock README.md CLAUDE.md artifact/ 2>/dev/null || true
+          # Frontend dist will be added in Phase 5
+          tar czf tuitional-finance-${{ steps.version.outputs.version }}.tar.gz -C artifact .
+
+      - name: Upload artifact (CI run)
+        uses: actions/upload-artifact@v4
+        with:
+          name: tuitional-finance-${{ steps.version.outputs.version }}
+          path: tuitional-finance-${{ steps.version.outputs.version }}.tar.gz
+          retention-days: 90
+
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: tuitional-finance-${{ steps.version.outputs.version }}.tar.gz
+          generate_release_notes: true
+
+  # Optional: build a Docker image and push to a registry. Disabled by default.
+  build-image:
+    name: Build container image
+    runs-on: ubuntu-latest
+    if: ${{ false }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: tuitional/finance:${{ github.ref_name }}

@@ -1,0 +1,145 @@
+[project]
+name = "tuitional-finance"
+version = "0.1.0"
+description = "Autonomous finance department for Tuitional Education"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [{ name = "Tuitional Education" }]
+
+dependencies = [
+    # Web framework
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "python-multipart>=0.0.9",   # multipart uploads
+    # Data validation and settings
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    # Database
+    "sqlalchemy>=2.0",
+    "alembic>=1.13",
+    "psycopg[binary,pool]>=3.1",
+    # Auth
+    "argon2-cffi>=23.1",
+    "pyotp>=2.9",
+    "itsdangerous>=2.1",
+    # YAML, dates, decimal helpers
+    "pyyaml>=6.0",
+    "python-dateutil>=2.9",
+    # HTTP client (for FX rate puller, LMS adapter)
+    "httpx>=0.27",
+    # CSV / data wrangling for ingestion
+    "pandas>=2.2",
+    # Anthropic SDK (for the CFO chat agent)
+    "anthropic>=0.25",
+    # Google Sheets adapter
+    "google-api-python-client>=2.120",
+    "google-auth>=2.28",
+    # Logging
+    "structlog>=24.1",
+    # Reports
+    "openpyxl>=3.1",     # XLSX
+    "weasyprint>=61.0",  # PDF rendering from HTML
+    "jinja2>=3.1",       # templates for emails and PDFs
+]
+
+[dependency-groups]
+dev = [
+    # Test
+    "pytest>=8.0",
+    "pytest-cov>=4.1",
+    "pytest-asyncio>=0.23",
+    "hypothesis>=6.99",
+    "factory-boy>=3.3",
+    "freezegun>=1.4",
+    # Test infra
+    "testcontainers[postgres]>=4.4",
+    # Lint and type
+    "ruff>=0.3",
+    "mypy>=1.9",
+    "types-pyyaml",
+    "types-python-dateutil",
+    # Security scan
+    "bandit>=1.7",
+    "safety>=3.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+# =============================================================================
+# Tooling configuration
+# =============================================================================
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # bugbear
+    "UP",  # pyupgrade
+    "N",   # naming
+    "RUF", # ruff-specific
+    "S",   # bandit-style security
+    "PT",  # pytest style
+    "SIM", # simplify
+]
+ignore = [
+    "S101",   # asserts in tests are fine
+    "RUF002", # − minus sign is intentional in finance-domain docstrings
+    "RUF003", # × / − etc. are intentional in finance-domain comments
+    "UP042",  # str+Enum is deliberate (StrEnum is 3.11-only; we keep cross-3.10 source compat)
+    "B017",   # pytest.raises(Exception) acceptable in audit-row tests where any LedgerError variant suffices
+    "PT011",  # pytest.raises broad-Exception caveat; same justification as B017
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106"]
+"migrations/versions/*.py" = ["E501"]  # alembic-generated DDL lines run long
+"src/api/*.py" = ["UP017", "B008"]      # 3.10 timezone alias + FastAPI Depends in defaults
+"src/api/routes/*.py" = ["B008"]        # FastAPI Depends idiom
+"src/chat/*.py" = ["UP017"]             # 3.10 timezone alias compat
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+warn_unused_ignores = true
+plugins = ["pydantic.mypy"]
+exclude = ["build/", "dist/"]
+
+[[tool.mypy.overrides]]
+module = ["googleapiclient.*", "google.auth.*", "weasyprint.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers --strict-config"
+asyncio_mode = "auto"
+markers = [
+    "integration: tests requiring a real database (Docker)",
+    "slow: tests that take > 1 second",
+    "smoketest: end-to-end golden scenario",
+]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]

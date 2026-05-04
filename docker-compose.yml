@@ -1,0 +1,54 @@
+# Local development stack only. NOT for production deployment.
+# Production runs Postgres + the Python services on the VPS via systemd.
+# Use this to bring up Postgres and Adminer for local hacking.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tuitional-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tuitional
+      POSTGRES_USER: tuitional
+      POSTGRES_PASSWORD: tuitional
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - tuitional_pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tuitional -d tuitional"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  adminer:
+    image: adminer:4
+    container_name: tuitional-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Test database (separate Postgres instance to keep test isolation cheap)
+  postgres_test:
+    image: postgres:16-alpine
+    container_name: tuitional-postgres-test
+    profiles: ["test"]
+    environment:
+      POSTGRES_DB: tuitional_test
+      POSTGRES_USER: tuitional
+      POSTGRES_PASSWORD: tuitional
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data    # ephemeral; faster + isolated
+
+volumes:
+  tuitional_pgdata:
+    driver: local

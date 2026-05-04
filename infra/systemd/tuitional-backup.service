@@ -1,0 +1,11 @@
+[Unit]
+Description=Tuitional Finance — Postgres backup
+After=network.target postgresql.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/tuitional/backup.env
+User=tuitional
+ExecStart=/opt/tuitional/scripts/backup.sh
+StandardOutput=journal
+StandardError=journal

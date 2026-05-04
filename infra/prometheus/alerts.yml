@@ -1,0 +1,82 @@
+# Tuitional Finance — Prometheus alert rules.
+#
+# These map directly onto plan.md Phase 6 acceptance ("alert rules: agent
+# failures, ingestion lag, quarantine size, backup age, FX missing").
+#
+# Backup-age and FX-missing alerts read from a separate textfile exporter
+# the systemd timers write to (paths in alerts below). Keeping that in a
+# separate file lets the Prometheus container scrape it without needing
+# the application to know about it.
+
+groups:
+  - name: tuitional-backend
+    interval: 30s
+    rules:
+      - alert: BackendDown
+        expr: up{job="tuitional-backend"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "Tuitional backend is unreachable"
+          runbook_url: "/docs/runbooks/disaster_recovery.md"
+
+      - alert: HighRejectionRate
+        expr: |
+          (
+            sum(rate(tuitional_journals_rejected_total[5m]))
+            /
+            (sum(rate(tuitional_journals_posted_total[5m])) + 0.01)
+          ) > 0.10
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "Journal rejection rate > 10% over 10 minutes"
+          description: "Rolling 5m rejection rate is high — check audit_log for the reason tag."
+
+      - alert: HighLatencyP99
+        expr: |
+          histogram_quantile(
+            0.99,
+            sum(rate(tuitional_http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 1.0
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "API p99 latency > 1s over 10 minutes"
+
+      - alert: QuarantineGrowing
+        expr: tuitional_quarantine_open > 50
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: "Open quarantine rows > 50 for 30+ minutes"
+          runbook_url: "/docs/rules/ingestion_rules.md"
+
+  - name: tuitional-ops
+    interval: 60s
+    rules:
+      - alert: BackupAgeStale
+        # Written by scripts/backup.sh into a Prometheus textfile collector.
+        expr: time() - tuitional_backup_last_success_timestamp_seconds > 90000
+        for: 30m
+        labels: { severity: critical }
+        annotations:
+          summary: "No successful backup in the last 25 hours"
+          runbook_url: "/docs/runbooks/disaster_recovery.md"
+
+      - alert: FxRateMissingForToday
+        # The FX puller writes this gauge after a successful daily fetch.
+        expr: tuitional_fx_rate_age_hours > 36
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: "FX rate (AED→PKR) is more than 36 hours stale"
+          runbook_url: "/docs/runbooks/fx_rate_override.md"
+
+      - alert: PeriodCloseRunFailed
+        expr: increase(tuitional_period_close_failures_total[1h]) > 0
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "A period-close run failed in the last hour"
+          runbook_url: "/docs/runbooks/period_reopen.md"

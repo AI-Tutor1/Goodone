@@ -1,0 +1,42 @@
+{
+  "_format": 1,
+  "_description": "Phase-2 partial smoketest golden file. Hand-curated by tracing the seed_dev_data.py flow line by line. Regenerate by running the smoketest with --update-golden if behaviour intentionally changes.",
+  "period": "2026-04",
+  "period_status_after_close": "CLOSED",
+  "trial_balance_zero": true,
+  "je_count_after_seed": 48,
+  "balances": {
+    "1010": "259300.00",
+    "2050_total": "54900.00",
+    "2020_total": "3340.83",
+    "3010": "100000.00",
+    "3020": "100000.00",
+    "4010": "4400.00",
+    "5010": "3436.67",
+    "5020": "95.84"
+  },
+  "wallet_per_student_aed": {
+    "S001": "28300.00",
+    "S002": "22000.00",
+    "S003": "3500.00",
+    "S004": "1100.00",
+    "S005": "0.00"
+  },
+  "penalty_case_journal": {
+    "source_ref": "SES-PENALTY-COST",
+    "lines": [
+      {"account_code": "5010", "debit_aed": "1916.67", "credit_aed": "0.00"},
+      {"account_code": "2020", "debit_aed": "0.00",    "credit_aed": "1820.83"},
+      {"account_code": "5020", "debit_aed": "0.00",    "credit_aed": "95.84"}
+    ],
+    "_note": "Penalty arithmetic: 2500 × 46/60 = 1916.67 (ROUND_HALF_EVEN); ×0.95 = 1820.83. Penalty contra = 1916.67 − 1820.83 = 95.84. The doc example in accounting_rules.md §4 shows 95.83 rounded from 0.05×prorated, but the engine balances to the cent so 95.84 is canonical."
+  },
+  "subledger_reconciliation": {
+    "student_wallet": "matches",
+    "tutor_payable":  "matches",
+    "fixed_asset":    "matches",
+    "prepaid":        "matches",
+    "intangible":     "matches",
+    "sanction_memo":  "matches"
+  }
+}

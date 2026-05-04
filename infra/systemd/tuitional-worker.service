@@ -1,0 +1,42 @@
+[Unit]
+Description=Tuitional Finance Worker (scheduled agents, ingestion adapters)
+After=network.target postgresql.service tuitional-api.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=tuitional
+Group=tuitional
+WorkingDirectory=/opt/tuitional-finance/current
+EnvironmentFile=/opt/tuitional-finance/shared/.env
+
+# The worker process orchestrates scheduled agents:
+#   - LMS adapter (hourly)
+#   - FX rate puller (daily 00:30 UTC)
+#   - Sheets adapter (daily)
+#   - Period close cron (T+1 / T+5)
+ExecStart=/opt/tuitional-finance/current/.venv/bin/python -m src.worker
+
+Restart=on-failure
+RestartSec=10s
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/tuitional-finance/shared /var/log
+
+# Resources
+MemoryMax=1G
+CPUQuota=100%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tuitional-worker
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,971 @@
+# =============================================================================
+# Tuitional Education — Chart of Accounts
+# =============================================================================
+# This file is the source of truth for the COA. The Python loader reads this
+# into the `chart_of_accounts` table. Any change here requires:
+#   1. CFO approval
+#   2. A migration that updates the loaded rows in the database
+#   3. Validation that no existing journal lines reference removed accounts
+#
+# Schema for each account:
+#   code:               4-digit string, unique. Numeric ranges have meaning.
+#   name:               Human-readable name
+#   type:               asset | liability | equity | revenue | expense | contra | memo
+#   normal_balance:     debit | credit
+#   parent:             Parent account code (or null for top-level)
+#   statement:          BS (balance sheet) | IS (income statement) | MEMO (off-statement)
+#   is_postable:        true if journals can target this account directly;
+#                       false for headers / parent accounts
+#   sub_ledger:         null | student_wallet | tutor_payable | fixed_asset |
+#                       prepaid | intangible | sanction_memo
+#   currency:           AED (default for all reporting); some sub-ledgers also
+#                       track an original currency (e.g. PKR for tutor payable)
+#   is_memo:            true for memo accounts (9xxx). Excluded from BS/IS
+#                       roll-ups; still participate in the balanced-JE invariant.
+#                       Per accounting_rules.md §13, memo postings must net to
+#                       zero across the pair (2060 vs 9010) on the same JE.
+#   subtype:            optional reporting discriminator (e.g. "memo").
+#   description:        Operational notes
+#
+# Numbering convention (IFRS-aligned):
+#   1xxx — Assets (1000-1099 current, 1100-1199 non-current)
+#   2xxx — Liabilities (2000-2099 current, 2100-2199 non-current)
+#   3xxx — Equity
+#   4xxx — Revenue
+#   5xxx — Cost of Service (direct costs)
+#   6xxx — Operating Expenses
+#   7xxx — Non-operating items (FX, interest, disposals)
+#   9xxx — Memo accounts (off-statement; counter accounts for sanction memos etc.)
+# =============================================================================
+
+version: 2
+effective_from: "2026-05-01"
+
+accounts:
+
+  # =========================================================================
+  # 1xxx — ASSETS
+  # =========================================================================
+
+  - code: "1000"
+    name: "Current Assets"
+    type: asset
+    normal_balance: debit
+    parent: null
+    statement: BS
+    is_postable: false
+    sub_ledger: null
+    description: "Header for current assets group"
+
+  - code: "1010"
+    name: "Cash and Bank — AED"
+    type: asset
+    normal_balance: debit
+    parent: "1000"
+    statement: BS
+    is_postable: true
+    sub_ledger: null
+    currency: AED
+    description: "Operating bank account in AED"
+
+  - code: "1020"
+    name: "Cash and Bank — PKR"
+    type: asset
+    normal_balance: debit
+    parent: "1000"
+    statement: BS
+    is_postable: true
+    sub_ledger: null
+    currency: PKR
+    description: "PKR account, if maintained, for tutor payouts"
+
+  - code: "1030"
+    name: "Accounts Receivable — Trade"
+    type: asset
+    normal_balance: debit
+    parent: "1000"
+    statement: BS
+    is_postable: true
+    sub_ledger: null
+    description: "Receivables not collected via wallet (rare; B2B contracts if any)"
+
+  - code: "1040"
+    name: "Student Top-ups in Transit"
+    type: asset
+    normal_balance: debit
+    parent: "1000"
+    statement: BS
+    is_postable: true
+    sub_ledger: null
+    description: "Top-ups initiated but bank settlement pending"
+
+  - code: "1050"
+    name: "Prepaid Expenses"
+    type: asset
+    normal_balance: debit
+    parent: "1000"
+    statement: BS
+    is_postable: false
+    sub_ledger: null
+    description: "Header for prepaid expenses group"
+
+  - code: "1051"
+    name: "Prepaid LMS License"
+    type: asset
+    normal_balance: debit
+    parent: "1050"
+    statement: BS
+    is_postable: true
+    sub_ledger: prepaid
+    description: "LMS license paid annually (AED 15,000), amortized 1,250/month"
+
+  - code: "1052"
+    name: "Prepaid Other"
+    type: asset
+    normal_balance: debit
+    parent: "1050"
+    statement: BS
+    is_postable: true
+    sub_ledger: prepaid
+    description: "Other prepaid expenses (insurance, subscriptions paid annually)"
+
+  - code: "1060"
+    name: "Other Receivables"
+    type: asset
+    normal_balance: debit
+    parent: "1000"
+    statement: BS
+    is_postable: true
+    sub_ledger: null
+    description: "Refundable deposits, employee advances, etc."
+
+  - code: "1100"
+    name: "Non-Current Assets"
+    type: asset
+    normal_balance: debit
+    parent: null
+    statement: BS
+    is_postable: false
+    sub_ledger: null
+    description: "Header for non-current assets group"
+
+  - code: "1110"
+    name: "Property, Plant & Equipment"
+    type: asset
+    normal_balance: debit
+    parent: "1100"
+    statement: BS
+    is_postable: false
+    sub_ledger: null
+    description: "PPE header"
+
+  - code: "1111"
+    name: "Laptops — Cost"
+    type: asset
+    normal_balance: debit
+    parent: "1110"
+    statement: BS
+    is_postable: true
+    sub_ledger: fixed_asset
+    description: "Laptop cost. Useful life 3 years, straight-line."
+
+  - code: "1112"
+    name: "Laptops — Accumulated Depreciation"
+    type: contra
+    normal_balance: credit
+    parent: "1110"
+    statement: BS
+    is_postable: true
+    sub_ledger: fixed_asset
+    description: "Contra asset; reduces 1111"
+
+  - code: "1113"
+    name: "Furniture — Cost"
+    type: asset
+    normal_balance: debit
+    parent: "1110"
+    statement: BS
+    is_postable: true
+    sub_ledger: fixed_asset
+    description: "Furniture cost. Useful life 5 years, straight-line."
+
+  - code: "1114"
+    name: "Furniture — Accumulated Depreciation"
+    type: contra
+    normal_balance: credit
+    parent: "1110"
+    statement: BS
+    is_postable: true
+    sub_ledger: fixed_asset
+    description: "Contra asset; reduces 1113"
+
+  - code: "1115"
+    name: "Office Equipment — Cost"
+    type: asset
+    normal_balance: debit
+    parent: "1110"
+    statement: BS
+    is_postable: true
+    sub_ledger: fixed_asset
+    description: "Other office equipment, useful life 5 years"
+
+  - code: "1116"
+    name: "Office Equipment — Accumulated Depreciation"
+    type: contra
+    normal_balance: credit
+    parent: "1110"
+    statement: BS
+    is_postable: true
+    sub_ledger: fixed_asset
+    description: "Contra asset; reduces 1115"
+
+  - code: "1120"
+    name: "Intangible Assets"
+    type: asset
+    normal_balance: debit
+    parent: "1100"
+    statement: BS
+    is_postable: false
+    sub_ledger: null
+    description: "Intangibles header"
+
+  - code: "1121"
+    name: "Tuitional AI — Software in Development"
+    type: asset
+    normal_balance: debit
+    parent: "1120"
+    statement: BS
+    is_postable: true
+    sub_ledger: intangible
+    description: |
+      Development costs capitalized under IAS 38. Feasibility established
+      May 2024. Monthly capitalization = (developer salary × time allocation).
+      Currently AED 2,000/month (1 dev × AED 4,000 × 50%).
+      Reclassified to 1122 on launch.
+
+  - code: "1122"
+    name: "Tuitional AI — Software (Launched)"
+    type: asset
+    normal_balance: debit
+    parent: "1120"
+    statement: BS
+    is_postable: true
+    sub_ledger: intangible
+    description: "Launched intangible. Amortized over 5 years SL from launch date."
+
+  - code: "1123"
+    name: "Software — Accumulated Amortization"
+    type: contra
+    normal_balance: credit
+    parent: "1120"
+    statement: BS
+    is_postable: true
+    sub_ledger: intangible
+    description: "Contra intangible; reduces 1122"
+
+  # =========================================================================
+  # 2xxx — LIABILITIES
+  # =========================================================================
+
+  - code: "2000"
+    name: "Current Liabilities"
+    type: liability
+    normal_balance: credit
+    parent: null
+    statement: BS
+    is_postable: false
+    sub_ledger: null
+    description: "Header for current liabilities group"
+
+  - code: "2010"
+    name: "Accounts Payable — Trade"
+    type: liability
+    normal_balance: credit
+    parent: "2000"
+    statement: BS
+    is_postable: true
+    sub_ledger: null
+    description: "Vendor payables (non-tutor)"
+
+  - code: "2020"
+    name: "Tutor Payable — PKR"
+    type: liability
+    normal_balance: credit
+    parent: "2000"
+    statement: BS
+    is_postable: true
+    sub_ledger: tutor_payable
+    currency: PKR
+    description: |
+      Tutor payable in PKR. Recorded in AED at accrual rate.
+      Revalued at month-end closing rate (unrealized FX gain/loss).
+      Settled monthly on the 10th (realized FX gain/loss at payment).
+
+  - code: "2030"
+    name: "Tutor Payable — AED"
+    type: liability
+    normal_balance: credit
+    parent: "2000"
+    statement: BS
+    is_postable: true
+    sub_ledger: tutor_payable
+    currency: AED
+    description: "Tutor payable for AED-paid tutors (UAE-based, if any)"
+
+  - code: "2040"
+    name: "Accrued Expenses"
+    type: liability
+    normal_balance: credit
+    parent: "2000"
+    statement: BS
+    is_postable: true
+    sub_ledger: null
+    description: "Salaries accrued, utilities accrued, etc."
+
+  - code: "2050"
+    name: "Deferred Revenue — Student Wallets"
+    type: liability
+    normal_balance: credit
+    parent: "2000"
+    statement: BS
+    is_postable: true
+    sub_ledger: student_wallet
+    description: |
+      Pooled student wallet balances. Refundable, no expiry.
+      Aged for management reporting (dormant > 12 months flagged).
+      Sub-ledger maintains per-student running balance.
+
+  - code: "2060"
+    name: "Sanctioned but Unspent Budget"
+    type: liability
+    normal_balance: credit
+    parent: "2000"
+    statement: BS
+    is_postable: true
+    sub_ledger: sanction_memo
+    description: |
+      Memo account for tracking approved-but-unspent sanction requests.
+      Off-balance-sheet in spirit; appears in management reports only.
+      Reversed on actual spend.
+
+  - code: "2070"
+    name: "Tax Payable"
+    type: liability
+    normal_balance: credit
+    parent: "2000"
+    statement: BS
+    is_postable: true
+    sub_ledger: null
+    description: "VAT or other taxes payable. Not auto-computed in Phase 1-6."
+
+  - code: "2080"
+    name: "Other Payables"
+    type: liability
+    normal_balance: credit
+    parent: "2000"
+    statement: BS
+    is_postable: true
+    sub_ledger: null
+    description: "Catch-all for misc payables"
+
+  # =========================================================================
+  # 3xxx — EQUITY
+  # =========================================================================
+
+  - code: "3000"
+    name: "Equity"
+    type: equity
+    normal_balance: credit
+    parent: null
+    statement: BS
+    is_postable: false
+    sub_ledger: null
+    description: "Equity header"
+
+  - code: "3010"
+    name: "Share Capital"
+    type: equity
+    normal_balance: credit
+    parent: "3000"
+    statement: BS
+    is_postable: true
+    sub_ledger: null
+    description: "Paid-in share capital"
+
+  - code: "3020"
+    name: "Retained Earnings"
+    type: equity
+    normal_balance: credit
+    parent: "3000"
+    statement: BS
+    is_postable: true
+    sub_ledger: null
+    description: "Cumulative retained earnings; closed annually from 3030"
+
+  - code: "3030"
+    name: "Current Year Earnings"
+    type: equity
+    normal_balance: credit
+    parent: "3000"
+    statement: BS
+    is_postable: false
+    sub_ledger: null
+    description: "Computed; rolled up from P&L. Closed to 3020 at year-end."
+
+  # =========================================================================
+  # 4xxx — REVENUE
+  # =========================================================================
+
+  - code: "4000"
+    name: "Revenue"
+    type: revenue
+    normal_balance: credit
+    parent: null
+    statement: IS
+    is_postable: false
+    sub_ledger: null
+    description: "Revenue header"
+
+  - code: "4010"
+    name: "Tutoring Revenue — Conducted Sessions"
+    type: revenue
+    normal_balance: credit
+    parent: "4000"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: "Revenue from sessions where conducted = true"
+
+  - code: "4020"
+    name: "Tutoring Revenue — Student No-Show"
+    type: revenue
+    normal_balance: credit
+    parent: "4000"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: |
+      Revenue from student-absent sessions where tutor is not paid.
+      Reported separately so dependency on this margin source is visible.
+
+  - code: "4030"
+    name: "Breakage Revenue"
+    type: revenue
+    normal_balance: credit
+    parent: "4000"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: |
+      Wallet balances written off as revenue. NOT active given current policy
+      (refundable, no expiry). Reserved for future policy change.
+
+  - code: "4040"
+    name: "Other Revenue"
+    type: revenue
+    normal_balance: credit
+    parent: "4000"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: "Other income (e.g. content licensing, partnerships)"
+
+  # =========================================================================
+  # 5xxx — COST OF SERVICE
+  # =========================================================================
+
+  - code: "5000"
+    name: "Cost of Service"
+    type: expense
+    normal_balance: debit
+    parent: null
+    statement: IS
+    is_postable: false
+    sub_ledger: null
+    description: "Direct cost header"
+
+  - code: "5010"
+    name: "Tutor Fees — Base"
+    type: expense
+    normal_balance: debit
+    parent: "5000"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: "Tutor fees in AED equivalent at accrual rate"
+
+  - code: "5020"
+    name: "Tutor Fees — Penalty Adjustments"
+    type: contra
+    normal_balance: credit
+    parent: "5000"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: |
+      Contra to 5010. Records the 5% penalty reduction on short sessions
+      separately so penalty volume is visible in management reporting.
+
+  - code: "5030"
+    name: "Permanent Teacher Costs"
+    type: expense
+    normal_balance: debit
+    parent: "5000"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: "Permanent (salaried) teacher hourly costs allocated to revenue"
+
+  - code: "5040"
+    name: "Payment Processing Fees"
+    type: expense
+    normal_balance: debit
+    parent: "5000"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: "PSP fees on student top-ups"
+
+  # =========================================================================
+  # 6xxx — OPERATING EXPENSES
+  # =========================================================================
+
+  - code: "6000"
+    name: "Operating Expenses"
+    type: expense
+    normal_balance: debit
+    parent: null
+    statement: IS
+    is_postable: false
+    sub_ledger: null
+    description: "OpEx header"
+
+  - code: "6100"
+    name: "Personnel"
+    type: expense
+    normal_balance: debit
+    parent: "6000"
+    statement: IS
+    is_postable: false
+    sub_ledger: null
+    description: "Personnel costs (excluding tutor fees, which are direct)"
+
+  - code: "6110"
+    name: "Salaries — Counseling"
+    type: expense
+    normal_balance: debit
+    parent: "6100"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: ""
+
+  - code: "6120"
+    name: "Salaries — Tech"
+    type: expense
+    normal_balance: debit
+    parent: "6100"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: |
+      Tech team salaries. Portion allocated to Tuitional AI development is
+      capitalized to 1121 (currently 50% of one developer = AED 2,000/mo).
+
+  - code: "6130"
+    name: "Salaries — Marketing"
+    type: expense
+    normal_balance: debit
+    parent: "6100"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: ""
+
+  - code: "6140"
+    name: "Salaries — HR"
+    type: expense
+    normal_balance: debit
+    parent: "6100"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: ""
+
+  - code: "6150"
+    name: "Salaries — Finance"
+    type: expense
+    normal_balance: debit
+    parent: "6100"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: ""
+
+  - code: "6160"
+    name: "Salaries — Operations / Management"
+    type: expense
+    normal_balance: debit
+    parent: "6100"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: ""
+
+  - code: "6170"
+    name: "Employee Benefits"
+    type: expense
+    normal_balance: debit
+    parent: "6100"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: "Insurance, gratuity accrual, bonuses, etc."
+
+  - code: "6200"
+    name: "Marketing"
+    type: expense
+    normal_balance: debit
+    parent: "6000"
+    statement: IS
+    is_postable: false
+    sub_ledger: null
+    description: "Marketing expense header"
+
+  - code: "6210"
+    name: "Ad Spend — Google"
+    type: expense
+    normal_balance: debit
+    parent: "6200"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: ""
+
+  - code: "6220"
+    name: "Ad Spend — Meta"
+    type: expense
+    normal_balance: debit
+    parent: "6200"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: ""
+
+  - code: "6230"
+    name: "Ad Spend — Other"
+    type: expense
+    normal_balance: debit
+    parent: "6200"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: ""
+
+  - code: "6240"
+    name: "Marketing — Content & Tools"
+    type: expense
+    normal_balance: debit
+    parent: "6200"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: "Content production, MarTech subscriptions"
+
+  - code: "6300"
+    name: "Technology"
+    type: expense
+    normal_balance: debit
+    parent: "6000"
+    statement: IS
+    is_postable: false
+    sub_ledger: null
+    description: "Technology costs header"
+
+  - code: "6310"
+    name: "LMS License Amortization"
+    type: expense
+    normal_balance: debit
+    parent: "6300"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: "Monthly amortization of 1051"
+
+  - code: "6320"
+    name: "Cloud Infrastructure"
+    type: expense
+    normal_balance: debit
+    parent: "6300"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: "Hosting, AWS/Azure/GCP, etc."
+
+  - code: "6330"
+    name: "Software Subscriptions"
+    type: expense
+    normal_balance: debit
+    parent: "6300"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: "Non-capitalized software subscriptions"
+
+  - code: "6340"
+    name: "Domain & Hosting"
+    type: expense
+    normal_balance: debit
+    parent: "6300"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: ""
+
+  - code: "6400"
+    name: "General & Admin"
+    type: expense
+    normal_balance: debit
+    parent: "6000"
+    statement: IS
+    is_postable: false
+    sub_ledger: null
+    description: "G&A header"
+
+  - code: "6410"
+    name: "Office Rent"
+    type: expense
+    normal_balance: debit
+    parent: "6400"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: ""
+
+  - code: "6420"
+    name: "Utilities"
+    type: expense
+    normal_balance: debit
+    parent: "6400"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: ""
+
+  - code: "6430"
+    name: "Internet & Telecom"
+    type: expense
+    normal_balance: debit
+    parent: "6400"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: ""
+
+  - code: "6440"
+    name: "Office Supplies"
+    type: expense
+    normal_balance: debit
+    parent: "6400"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: "Items below capitalization threshold (AED 1,000)"
+
+  - code: "6450"
+    name: "Professional Fees"
+    type: expense
+    normal_balance: debit
+    parent: "6400"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: "Legal, audit, consulting"
+
+  - code: "6460"
+    name: "Bank Charges"
+    type: expense
+    normal_balance: debit
+    parent: "6400"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: "Wire fees, account maintenance"
+
+  - code: "6470"
+    name: "Travel"
+    type: expense
+    normal_balance: debit
+    parent: "6400"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: ""
+
+  - code: "6480"
+    name: "Other G&A"
+    type: expense
+    normal_balance: debit
+    parent: "6400"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: ""
+
+  - code: "6500"
+    name: "Depreciation & Amortization"
+    type: expense
+    normal_balance: debit
+    parent: "6000"
+    statement: IS
+    is_postable: false
+    sub_ledger: null
+    description: |
+      D&A header. EBITDA = Operating Profit + D&A
+      (i.e., total of 6510 + 6520 + 6530 + 6540 added back)
+
+  - code: "6510"
+    name: "Depreciation — Laptops"
+    type: expense
+    normal_balance: debit
+    parent: "6500"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: ""
+
+  - code: "6520"
+    name: "Depreciation — Furniture"
+    type: expense
+    normal_balance: debit
+    parent: "6500"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: ""
+
+  - code: "6530"
+    name: "Depreciation — Office Equipment"
+    type: expense
+    normal_balance: debit
+    parent: "6500"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: ""
+
+  - code: "6540"
+    name: "Amortization — Software"
+    type: expense
+    normal_balance: debit
+    parent: "6500"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: "Amortization of 1122 over 5 years SL post-launch"
+
+  # =========================================================================
+  # 7xxx — NON-OPERATING ITEMS
+  # =========================================================================
+
+  - code: "7000"
+    name: "Non-Operating Items"
+    type: expense
+    normal_balance: debit
+    parent: null
+    statement: IS
+    is_postable: false
+    sub_ledger: null
+    description: "Below-EBITDA items"
+
+  - code: "7010"
+    name: "FX Gain/Loss — Realized"
+    type: expense
+    normal_balance: debit
+    parent: "7000"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: |
+      Posted on tutor payment date. = (rate_at_accrual - rate_at_payment) * pkr_amount
+      Sign convention: debit balance = loss; credit balance = gain.
+
+  - code: "7020"
+    name: "FX Gain/Loss — Unrealized"
+    type: expense
+    normal_balance: debit
+    parent: "7000"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: |
+      Posted at month-end revaluation of open PKR payables.
+      Reversed on settlement.
+
+  - code: "7030"
+    name: "Interest Income"
+    type: revenue
+    normal_balance: credit
+    parent: "7000"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: ""
+
+  - code: "7040"
+    name: "Interest Expense"
+    type: expense
+    normal_balance: debit
+    parent: "7000"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: "Inactive (no debt currently). Reserved."
+
+  - code: "7050"
+    name: "Asset Disposal Gain/Loss"
+    type: expense
+    normal_balance: debit
+    parent: "7000"
+    statement: IS
+    is_postable: true
+    sub_ledger: null
+    description: "Gain/loss on disposal of fixed or intangible assets"
+
+  # =========================================================================
+  # 9xxx — MEMO ACCOUNTS (off-statement)
+  # =========================================================================
+  # Memo accounts do not appear on the BS or IS. They participate in the
+  # balanced-JE invariant (Dr=Cr) but are filtered out of all financial-
+  # statement roll-ups by the Reporting Agent. Sanction memo postings use
+  # the pair 2060 (liability-shaped, sub-ledger tracked) and 9010 (true
+  # off-statement counter), so the JE balances and the BS is undisturbed
+  # by sanction commitments. See accounting_rules.md §13.
+
+  - code: "9000"
+    name: "Memo Accounts"
+    type: memo
+    normal_balance: debit
+    parent: null
+    statement: MEMO
+    is_postable: false
+    sub_ledger: null
+    is_memo: true
+    subtype: memo
+    description: "Header for memo / off-statement accounts"
+
+  - code: "9010"
+    name: "Sanction Memo — Counter"
+    type: memo
+    normal_balance: debit
+    parent: "9000"
+    statement: MEMO
+    is_postable: true
+    sub_ledger: sanction_memo
+    is_memo: true
+    subtype: memo
+    description: |
+      Off-statement counter account for sanction memo entries. Paired with
+      2060 Sanctioned but Unspent Budget on every sanction memo journal so
+      the JE balances without polluting the real BS. Reporting Agent treats
+      9xxx as off-statement and excludes it from BS roll-ups.

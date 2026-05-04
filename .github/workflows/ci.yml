@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+
+jobs:
+  backend:
+    name: Backend (lint + type + tests + security)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: tuitional
+          POSTGRES_PASSWORD: tuitional
+          POSTGRES_DB: tuitional_test
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://tuitional:tuitional@localhost:5433/tuitional_test
+      DATABASE_URL: postgresql+psycopg://tuitional:tuitional@localhost:5433/tuitional_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - name: Install uv
+        run: pip install uv
+      - name: Install deps
+        run: uv sync --all-groups
+      - name: Bootstrap schemas
+        run: |
+          PGPASSWORD=tuitional psql -h localhost -p 5433 -U tuitional \
+            -d tuitional_test -f infra/postgres/init.sql
+      - name: alembic upgrade head
+        run: uv run alembic upgrade head
+      - name: ruff check
+        run: uv run ruff check src tests migrations
+      - name: ruff format --check
+        run: uv run ruff format --check src tests migrations
+      - name: mypy
+        run: uv run mypy src
+      - name: pytest (unit)
+        run: uv run pytest -q -m "not integration and not smoketest"
+      - name: pytest (integration)
+        run: uv run pytest -q -m integration
+      - name: pytest (smoketest)
+        run: uv run pytest -q -m smoketest
+      - name: coverage gate (≥85%)
+        run: uv run pytest --cov=src --cov-fail-under=85 -q -m "not smoketest"
+      - name: bandit
+        run: uv run bandit -r src -ll
+      - name: safety (advisory)
+        run: uv run safety check || true
+      - name: render migration SQL
+        run: |
+          DATABASE_URL=postgresql+psycopg://x:x@x/x \
+            uv run alembic upgrade head --sql > docs/build/0001_initial.rendered.sql
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rendered-sql
+          path: docs/build/0001_initial.rendered.sql
+
+  frontend:
+    name: Frontend (typecheck + build)
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: frontend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "${{ env.NODE_VERSION }}"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci || npm install
+      - run: npm run typecheck
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+
+  yaml-lint:
+    name: Lint YAML (incl. COA)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install yamllint
+      - run: yamllint -d "{extends: default, rules: {line-length: disable, document-start: disable}}" docs/
+
+  docker:
+    name: Build Docker images
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/backend.Dockerfile
+          push: false
+          tags: tuitional-finance-backend:${{ github.sha }}
+      - name: Build frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/frontend.Dockerfile
+          push: false
+          tags: tuitional-finance-frontend:${{ github.sha }}

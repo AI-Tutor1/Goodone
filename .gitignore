@@ -1,0 +1,84 @@
+# --- Secrets and environment ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+service_account*.json
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+.tox/
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Node / frontend ---
+node_modules/
+frontend/dist/
+frontend/.vite/
+.npm/
+yarn-error.log
+pnpm-debug.log
+
+# --- IDE / OS ---
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# --- Local data and uploads ---
+/var/
+/data/
+/tmp/
+attachments/
+*.sqlite
+*.db
+*.dump
+*.sql.gz
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Backups (local) ---
+backups/
+*.tar.gz
+*.zip
+
+# --- Generated reports ---
+reports_output/
+*.pdf
+!docs/**/*.pdf
+
+# --- Smoketest scratch ---
+tests/_scratch/
+
+# --- Claude Code session artifacts ---
+.claude/sessions/
+.claude/logs/
+
+# --- Local scratch ---
+.gitignore.add

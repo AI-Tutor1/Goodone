@@ -1,0 +1,43 @@
+[Unit]
+Description=Tuitional Finance API (FastAPI)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=tuitional
+Group=tuitional
+WorkingDirectory=/opt/tuitional-finance/current
+EnvironmentFile=/opt/tuitional-finance/shared/.env
+
+# Use the Python from uv-managed venv inside the release directory
+ExecStart=/opt/tuitional-finance/current/.venv/bin/uvicorn src.api.main:app \
+    --host 127.0.0.1 \
+    --port 8000 \
+    --workers 2 \
+    --proxy-headers \
+    --forwarded-allow-ips=127.0.0.1
+
+Restart=on-failure
+RestartSec=5s
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/tuitional-finance/shared /var/log
+
+# Resource limits (adjust to your VPS)
+MemoryMax=1G
+CPUQuota=200%
+
+# Logging via journald with structured JSON
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tuitional-api
+
+[Install]
+WantedBy=multi-user.target
