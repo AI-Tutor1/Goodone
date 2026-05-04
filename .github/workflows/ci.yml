@@ -95,7 +95,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: pip install yamllint
-      - run: yamllint -d "{extends: default, rules: {line-length: disable, document-start: disable}}" docs/
+      - run: |
+          yamllint -d '{extends: default, rules: {line-length: disable, document-start: disable}}' docs/
 
   docker:
     name: Build Docker images
