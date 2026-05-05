@@ -40,13 +40,13 @@ from src.api.routes import fx as fx_routes
 from src.api.routes import ingestion as ingestion_routes
 from src.api.routes import manual_je as manual_je_routes
 from src.api.routes import master_data as master_data_routes
+from src.api.routes import payroll as payroll_routes
 from src.api.routes import period as period_routes
 from src.api.routes import quarantine as quarantine_routes
 from src.api.routes import reports as reports_routes
 from src.api.routes import sanctions as sanctions_routes
 from src.api.routes import subledgers as subledgers_routes
 from src.api.routes import system as system_routes
-from src.api.routes import payroll as payroll_routes
 from src.api.routes import uploads as uploads_routes
 from src.core.config import get_settings
 from src.core.db import get_engine

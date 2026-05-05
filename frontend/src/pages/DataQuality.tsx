@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ApiError, api } from "../api/client";
+import { api } from "../api/client";
 
 const SEVERITY_BADGE: Record<string, string> = {
   error: "bg-red-100 text-red-700",

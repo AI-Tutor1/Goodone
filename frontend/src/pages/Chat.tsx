@@ -27,8 +27,9 @@ export function Chat() {
     const sessData = sessions.data;
     if (!sid && !createSession.isPending && sessData !== undefined) {
       const list = sessData.sessions ?? [];
-      if (list.length > 0) {
-        setSid(list[0].session_id);
+      const first = list.at(0);
+      if (first) {
+        setSid(first.session_id);
       } else {
         createSession.mutate();
       }

@@ -84,7 +84,6 @@ function BackupPanel() {
 
 function TotpPanel() {
   const [show, setShow] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
 
   const setup = useQuery({
     queryKey: ["totp-setup"],
@@ -97,7 +96,7 @@ function TotpPanel() {
     <div className="card space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">TOTP Setup</h3>
-        <button className="btn-ghost" onClick={() => { setShow(!show); setErr(null); }}>
+        <button className="btn-ghost" onClick={() => setShow(!show)}>
           {show ? "Hide" : "Show Setup"}
         </button>
       </div>

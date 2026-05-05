@@ -10,12 +10,6 @@ export function Budget() {
   const [notes, setNotes] = useState("");
   const [err, setErr] = useState<string | null>(null);
 
-  const entries = useQuery({
-    queryKey: ["budget", period],
-    queryFn: () => api.listBudget(period),
-    enabled: !!period,
-  });
-
   const variance = useQuery({
     queryKey: ["budget-vs-actual", period],
     queryFn: () => api.budgetVsActual(period),

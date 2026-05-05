@@ -10,14 +10,9 @@ export function Profitability() {
     queryFn: () => api.profitability(period || undefined),
   });
 
-  const totalRevenue = (profit.data ?? []).reduce(
-    (acc, r) => acc + Number(r.revenue_aed),
-    0,
-  );
-  const totalMargin = (profit.data ?? []).reduce(
-    (acc, r) => acc + Number(r.contribution_margin_aed),
-    0,
-  );
+  const rows = profit.data?.rows ?? [];
+  const totalRevenue = rows.reduce((acc, r) => acc + Number(r.revenue_aed), 0);
+  const totalMargin = rows.reduce((acc, r) => acc + Number(r.contribution_margin_aed), 0);
 
   return (
     <div className="space-y-6">
@@ -52,7 +47,7 @@ export function Profitability() {
             </tr>
           </thead>
           <tbody>
-            {(profit.data ?? []).map((r) => (
+            {rows.map((r) => (
               <tr key={r.enrollment_id}>
                 <td className="table-cell font-mono text-xs">#{r.enrollment_id}</td>
                 <td className="table-cell"><Money amount={r.revenue_aed} /></td>
