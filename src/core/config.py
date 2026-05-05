@@ -58,6 +58,56 @@ class Settings(BaseSettings):
     chat_model: str = Field(default="claude-sonnet-4-6")
     anthropic_api_key: SecretStr | None = Field(default=None)
 
+    # File uploads
+    attachments_dir: Path = Field(default=REPO_ROOT / "attachments")
+    attachments_max_size_mb: int = Field(default=20)
+
+    # TOTP — set cfo_totp_secret to a base32 string (pyotp.random_base32()) and
+    # totp_enforced=true in production to require OTP on every login.
+    cfo_totp_secret: SecretStr | None = Field(default=None)
+    totp_enforced: bool = Field(default=False)
+
+    # FA (Finance Admin) role — separate from CFO; can approve sanctions / view reports
+    fa_username: str | None = Field(default=None)
+    fa_password: SecretStr | None = Field(default=None)
+    fa_email: str | None = Field(default=None)
+    cfo_email: str | None = Field(default=None)
+
+    # Email notifications
+    email_provider: str = Field(default="stub")  # "stub" | "smtp" | "sendgrid" | "ses"
+    email_from_address: str = Field(default="finance@tuitional.example")
+    email_from_name: str = Field(default="Tuitional Finance")
+    smtp_host: str | None = Field(default=None)
+    smtp_port: int = Field(default=587)
+    smtp_username: str | None = Field(default=None)
+    smtp_password: SecretStr | None = Field(default=None)
+    sendgrid_api_key: SecretStr | None = Field(default=None)
+    ses_region: str | None = Field(default=None)
+
+    # LMS adapter
+    lms_api_base_url: str | None = Field(default=None)
+    lms_api_key: SecretStr | None = Field(default=None)
+    lms_poll_interval_minutes: int = Field(default=60)
+
+    # Google Sheets — ad spend (existing) + sessions + enrollments
+    google_service_account_json_path: str | None = Field(default=None)
+    google_sheets_ad_spend_id: str | None = Field(default=None)
+    google_sheets_ad_spend_tab: str = Field(default="ad_spend")
+    google_sheets_sessions_id: str | None = Field(default=None)
+    google_sheets_sessions_tab: str = Field(default="sessions")
+    google_sheets_enrollments_id: str | None = Field(default=None)
+    google_sheets_enrollments_tab: str = Field(default="enrollments")
+
+    # FX
+    fx_api_key: SecretStr | None = Field(default=None)
+    fx_base_currency: str = Field(default="AED")
+
+    # Backup
+    backup_dir: Path = Field(default=Path("/var/backups/tuitional"))
+
+    # Budget period lock — when True, CFO must explicitly unlock before editing budget
+    budget_period_lock: bool = Field(default=False)
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

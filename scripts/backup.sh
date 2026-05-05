@@ -55,4 +55,25 @@ if [ -n "$S3_BUCKET" ]; then
     fi
 fi
 
+# Backup uploaded file attachments alongside the DB dump.
+# ATTACHMENTS_DIR must match the env var used by the API process.
+ATTACHMENTS_DIR="${ATTACHMENTS_DIR:-/var/lib/tuitional/attachments}"
+if [ -d "$ATTACHMENTS_DIR" ]; then
+    ATTACH_DEST="$BACKUP_DIR/attachments-${TS}.tar.gz"
+    tar -czf "$ATTACH_DEST" \
+        -C "$(dirname "$ATTACHMENTS_DIR")" \
+        "$(basename "$ATTACHMENTS_DIR")" \
+        && echo "[backup] attachments → $ATTACH_DEST ($(stat -c '%s' "$ATTACH_DEST") bytes)" \
+        || echo "[backup] WARN attachments backup failed" >&2
+    if [ -n "$S3_BUCKET" ] && command -v aws >/dev/null 2>&1; then
+        aws s3 cp --quiet "$ATTACH_DEST" \
+            "s3://$S3_BUCKET/$(basename "$ATTACH_DEST")" \
+            || echo "[backup] WARN offsite copy of attachments failed" >&2
+    fi
+    # Prune old attachment archives with the same retention as DB dumps.
+    find "$BACKUP_DIR" -name 'attachments-*.tar.gz' -mtime +"$RETENTION_DAYS" -delete
+else
+    echo "[backup] WARN ATTACHMENTS_DIR=$ATTACHMENTS_DIR does not exist — skipping file backup" >&2
+fi
+
 echo "[backup] done"

@@ -86,6 +86,44 @@ def close(
     return asdict(result)
 
 
+@router.post("/{period}/pre-close-preview")
+def pre_close_preview(
+    period: str,
+    payload: PreClosePayload,
+    session=Depends(require_cfo),
+    db=Depends(db_session),
+) -> dict:
+    """Dry-run: runs all T+1 agents inside a SAVEPOINT that is always rolled back.
+
+    Returns the list of JEs that *would* be posted without altering the GL.
+    """
+    coa = get_active_coa()
+    registry = build_default_registry()
+    from sqlalchemy import text as _text
+
+    db.execute(_text("SAVEPOINT pre_close_preview"))
+    try:
+        summary = pc_agent.run_pre_close(
+            db,
+            period=period,
+            posting_date=payload.posting_date,
+            closing_rate_aed_per_pkr=payload.closing_rate_aed_per_pkr,
+            coa=coa,
+            sub_ledgers=registry,
+        )
+        would_post = {
+            "fx_jes": len(summary.fx_jes),
+            "depreciation_jes": len(summary.depreciation_jes),
+            "prepaid_jes": len(summary.prepaid_jes),
+            "tuitional_ai_je": summary.tuitional_ai_je is not None,
+            "intangible_amortization_jes": len(summary.intangible_amortization_jes),
+        }
+    finally:
+        db.execute(_text("ROLLBACK TO SAVEPOINT pre_close_preview"))
+
+    return {"period": period, "dry_run": True, "would_post": would_post}
+
+
 @router.post("/{period}/reopen")
 def reopen(
     period: str,

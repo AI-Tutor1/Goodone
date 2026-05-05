@@ -109,30 +109,78 @@ Generate a secret key and store the production env file:
 SECRET=$(python3 -c 'import secrets;print(secrets.token_urlsafe(64))')
 CFO_PASSWORD=$(openssl rand -base64 24)
 
+TOTP_SECRET=$(python3 -c 'import pyotp; print(pyotp.random_base32())')
+FA_PASSWORD=$(openssl rand -base64 24)
+
 sudo -u tuitional tee /etc/tuitional/app.env >/dev/null <<EOF
 APP_ENV=production
 APP_PORT=3002
 DATABASE_URL=postgresql+psycopg://tuitional:<DB_PASSWORD>@localhost:5432/tuitional
 SECRET_KEY=${SECRET}
+
+# CFO auth + mandatory TOTP
 CFO_USERNAME=cfo
 CFO_PASSWORD=${CFO_PASSWORD}
+CFO_TOTP_SECRET=${TOTP_SECRET}
+TOTP_ENFORCED=true
+CFO_EMAIL=cfo@your-domain.example
+
+# Finance Admin (FA) role — can approve sanctions, view reports; cannot close periods
+FA_USERNAME=fa
+FA_PASSWORD=${FA_PASSWORD}
+FA_EMAIL=fa@your-domain.example
+
 LOG_FORMAT=json
 LOG_LEVEL=INFO
+
+# File uploads
 ATTACHMENTS_DIR=/var/lib/tuitional/attachments
+ATTACHMENTS_MAX_SIZE_MB=20
+
+# Period close
 PERIOD_CLOSE_AUTO_CLOSE_DAY=5
+
+# Email
 EMAIL_PROVIDER=smtp
 SMTP_HOST=<your-smtp-host>
 SMTP_PORT=587
 SMTP_USERNAME=<smtp-user>
 SMTP_PASSWORD=<smtp-pass>
-SMTP_USE_TLS=true
 EMAIL_FROM_ADDRESS=finance@your-domain.example
 EMAIL_FROM_NAME=Tuitional Finance
+
+# LMS (set when your LMS vendor provides API credentials)
+# LMS_API_BASE_URL=https://lms.your-vendor.example
+# LMS_API_KEY=<key>
+
+# Google Sheets (set after uploading your service account JSON)
+# GOOGLE_SERVICE_ACCOUNT_JSON_PATH=/etc/tuitional/google-sa.json
+# GOOGLE_SHEETS_SESSIONS_ID=<spreadsheet-id>
+# GOOGLE_SHEETS_ENROLLMENTS_ID=<spreadsheet-id>
+
+# FX rates
+# FX_API_KEY=<exchangerate.host key>
+FX_BASE_CURRENCY=AED
+
+# Anthropic CFO chat (optional — set CHAT_PROVIDER=anthropic to enable)
+CHAT_PROVIDER=stub
+# ANTHROPIC_API_KEY=<key>
 EOF
 sudo chown tuitional:tuitional /etc/tuitional/app.env
 sudo chmod 600 /etc/tuitional/app.env
 echo "Generated CFO password: $CFO_PASSWORD"
-echo "Save it in your password manager. The CFO can rotate it via the API."
+echo "Generated FA password:  $FA_PASSWORD"
+echo "TOTP secret: $TOTP_SECRET"
+echo ""
+echo "IMPORTANT: Register the TOTP secret in an authenticator app (Google Authenticator / Authy)."
+echo "Use this provisioning URI:"
+python3 -c "
+import pyotp, os
+uri = pyotp.totp.TOTP(os.environ.get('TOTP_SECRET','${TOTP_SECRET}')).provisioning_uri('CFO', issuer_name='Tuitional Finance')
+print(uri)
+"
+echo "Or use GET /auth/totp-setup after first login to display the QR code."
+echo "Save CFO password, FA password, and TOTP secret in your password manager."
 ```
 
 Backup environment:

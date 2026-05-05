@@ -34,13 +34,20 @@ from sqlalchemy import text
 from src.api.dependencies import db_session, require_session
 from src.api.observability import ObservabilityMiddleware, render_prometheus
 from src.api.routes import auth as auth_routes
+from src.api.routes import budget as budget_routes
 from src.api.routes import chat as chat_routes
 from src.api.routes import fx as fx_routes
+from src.api.routes import ingestion as ingestion_routes
 from src.api.routes import manual_je as manual_je_routes
+from src.api.routes import master_data as master_data_routes
 from src.api.routes import period as period_routes
+from src.api.routes import quarantine as quarantine_routes
 from src.api.routes import reports as reports_routes
 from src.api.routes import sanctions as sanctions_routes
 from src.api.routes import subledgers as subledgers_routes
+from src.api.routes import system as system_routes
+from src.api.routes import payroll as payroll_routes
+from src.api.routes import uploads as uploads_routes
 from src.core.config import get_settings
 from src.core.db import get_engine
 from src.core.exceptions import COAValidationError
@@ -54,6 +61,8 @@ logger = get_logger("api")
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     settings = get_settings()
+    # Ensure the file-upload directory exists on every startup (dev + prod).
+    settings.attachments_dir.mkdir(parents=True, exist_ok=True)
     try:
         coa = COA.load_from_yaml(settings.coa_path)
         set_active_coa(coa)
@@ -87,6 +96,7 @@ app.add_middleware(
 
 
 app.include_router(auth_routes.router)
+app.include_router(uploads_routes.router)
 app.include_router(reports_routes.router)
 app.include_router(subledgers_routes.router)
 app.include_router(manual_je_routes.router)
@@ -94,6 +104,12 @@ app.include_router(sanctions_routes.router)
 app.include_router(period_routes.router)
 app.include_router(fx_routes.router)
 app.include_router(chat_routes.router)
+app.include_router(ingestion_routes.router)
+app.include_router(payroll_routes.router)
+app.include_router(quarantine_routes.router)
+app.include_router(budget_routes.router)
+app.include_router(master_data_routes.router)
+app.include_router(system_routes.router)
 
 
 # ---------------------------------------------------------------------------

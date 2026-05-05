@@ -13,6 +13,14 @@ import { Sanctions } from "./pages/Sanctions";
 import { PeriodClose } from "./pages/PeriodClose";
 import { FxRates } from "./pages/FxRates";
 import { Chat } from "./pages/Chat";
+import { UploadSessions } from "./pages/UploadSessions";
+import { TutorPayouts } from "./pages/TutorPayouts";
+import { DataQuality } from "./pages/DataQuality";
+import { LmsSync } from "./pages/LmsSync";
+import { BankReconciliation } from "./pages/BankReconciliation";
+import { MasterData } from "./pages/MasterData";
+import { Budget } from "./pages/Budget";
+import { Settings } from "./pages/Settings";
 
 function ProtectedShell() {
   const me = useQuery({ queryKey: ["me"], queryFn: () => api.me(), retry: false });
@@ -39,6 +47,14 @@ export default function App() {
         <Route path="period-close" element={<PeriodClose />} />
         <Route path="fx" element={<FxRates />} />
         <Route path="chat" element={<Chat />} />
+        <Route path="upload/sessions" element={<UploadSessions />} />
+        <Route path="payroll/payouts" element={<TutorPayouts />} />
+        <Route path="data-quality" element={<DataQuality />} />
+        <Route path="ingestion/lms" element={<LmsSync />} />
+        <Route path="ingestion/bank" element={<BankReconciliation />} />
+        <Route path="master-data" element={<MasterData />} />
+        <Route path="budget" element={<Budget />} />
+        <Route path="settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

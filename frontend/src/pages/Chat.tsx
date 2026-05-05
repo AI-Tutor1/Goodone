@@ -9,17 +9,32 @@ export function Chat() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const tools = useQuery({ queryKey: ["chat", "tools"], queryFn: () => api.chatTools() });
+  const sessions = useQuery({
+    queryKey: ["chat", "sessions"],
+    queryFn: () => api.chatSessions(),
+  });
 
   const createSession = useMutation({
     mutationFn: () => api.chatCreateSession(),
-    onSuccess: ({ id }) => setSid(id),
+    onSuccess: ({ id }) => {
+      setSid(id);
+      qc.invalidateQueries({ queryKey: ["chat", "sessions"] });
+    },
   });
 
-  // Auto-create a session on first mount.
+  // Auto-create a session on first mount if no sessions exist.
   useEffect(() => {
-    if (!sid && !createSession.isPending) createSession.mutate();
+    const sessData = sessions.data;
+    if (!sid && !createSession.isPending && sessData !== undefined) {
+      const list = sessData.sessions ?? [];
+      if (list.length > 0) {
+        setSid(list[0].session_id);
+      } else {
+        createSession.mutate();
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [sessions.data]);
 
   const session = useQuery({
     queryKey: ["chat", "session", sid],
@@ -32,10 +47,10 @@ export function Chat() {
     onSuccess: () => {
       setDraft("");
       qc.invalidateQueries({ queryKey: ["chat", "session", sid] });
+      qc.invalidateQueries({ queryKey: ["chat", "sessions"] });
     },
   });
 
-  // Scroll to the bottom whenever new messages land.
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [session.data?.messages.length]);
@@ -48,7 +63,41 @@ export function Chat() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_18rem] gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-[14rem_1fr_18rem] gap-4">
+      {/* Session sidebar */}
+      <aside className="card text-xs space-y-2">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold">Conversations</h3>
+          <button
+            className="btn-ghost text-xs"
+            onClick={() => createSession.mutate()}
+            disabled={createSession.isPending}
+          >
+            + New
+          </button>
+        </div>
+        <div className="space-y-1">
+          {(sessions.data?.sessions ?? []).map((s) => (
+            <button
+              key={s.session_id}
+              onClick={() => setSid(s.session_id)}
+              className={`w-full text-left px-2 py-1.5 rounded text-xs truncate ${
+                s.session_id === sid
+                  ? "bg-accent-500 text-white"
+                  : "hover:bg-ink-100 text-ink-700"
+              }`}
+            >
+              <div className="font-mono">{s.session_id}</div>
+              <div className="text-[10px] opacity-75">{s.message_count} msg</div>
+            </button>
+          ))}
+          {(sessions.data?.sessions ?? []).length === 0 && (
+            <div className="text-ink-700">No conversations yet</div>
+          )}
+        </div>
+      </aside>
+
+      {/* Chat area */}
       <div className="card p-0 flex flex-col h-[70vh]">
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
           {messages.length === 0 && (
@@ -76,11 +125,10 @@ export function Chat() {
         </form>
       </div>
 
+      {/* Tools sidebar */}
       <aside className="card text-xs space-y-2">
         <h3 className="text-sm font-semibold">Available tools</h3>
-        <p className="text-ink-700">
-          Read-only — the chat agent cannot modify the books.
-        </p>
+        <p className="text-ink-700">Read-only — the chat agent cannot modify the books.</p>
         <ul className="space-y-1">
           {(tools.data ?? []).map((t) => (
             <li key={t.name}>

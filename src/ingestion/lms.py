@@ -75,3 +75,65 @@ class MockLmsAdapter:
 
     def fetch_sessions(self, since: str) -> Iterable[SessionPayload]:
         return [s for s in self._sessions if s.occurred_on >= since]
+
+
+# ---------------------------------------------------------------------------
+# CSV / XLSX row parser — used by the bulk-upload ingestion endpoint.
+# ---------------------------------------------------------------------------
+
+REQUIRED_SESSION_COLUMNS = {
+    "session_id",
+    "enrollment_id",
+    "scheduled_minutes",
+    "conducted_minutes",
+    "status",
+    "occurred_on",
+}
+
+VALID_STATUSES = {"conducted", "student_absent", "teacher_absent", "cancelled", "no_show"}
+
+
+def parse_session_row(row: dict[str, str]) -> SessionPayload:
+    """Parse one dict row (from CSV DictReader or XLSX) into a SessionPayload.
+
+    Raises ``ValueError`` with a human-readable message on bad data so the
+    caller can quarantine the row without crashing the batch.
+    """
+    missing = REQUIRED_SESSION_COLUMNS - set(row.keys())
+    if missing:
+        raise ValueError(f"missing columns: {', '.join(sorted(missing))}")
+
+    status = str(row["status"]).strip().lower()
+    if status not in VALID_STATUSES:
+        raise ValueError(f"invalid status '{status}'; must be one of {sorted(VALID_STATUSES)}")
+
+    try:
+        scheduled = int(row["scheduled_minutes"])
+        conducted = int(row["conducted_minutes"])
+    except ValueError as exc:
+        raise ValueError(f"non-integer minutes: {exc}") from exc
+
+    if scheduled <= 0:
+        raise ValueError(f"scheduled_minutes must be > 0, got {scheduled}")
+    if conducted < 0:
+        raise ValueError(f"conducted_minutes must be >= 0, got {conducted}")
+
+    try:
+        enrollment_id = int(row["enrollment_id"])
+    except ValueError as exc:
+        raise ValueError(f"enrollment_id must be integer: {exc}") from exc
+
+    occurred_on = str(row["occurred_on"]).strip()
+    # Normalise YYYY-MM-DD; reject anything else.
+    import re
+    if not re.match(r"^\d{4}-(0[1-9]|1[0-2])-([0-2]\d|3[01])$", occurred_on):
+        raise ValueError(f"occurred_on must be YYYY-MM-DD, got '{occurred_on}'")
+
+    return SessionPayload(
+        session_id=str(row["session_id"]).strip(),
+        enrollment_id=enrollment_id,
+        scheduled_minutes=scheduled,
+        conducted_minutes=conducted,
+        status=status,
+        occurred_on=occurred_on,
+    )

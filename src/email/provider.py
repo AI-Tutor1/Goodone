@@ -94,14 +94,15 @@ def get_email_provider() -> EmailProvider:
     if name == "stub":
         _active = StubEmailProvider()
     elif name == "smtp":
+        smtp_pw = getattr(s, "smtp_password", None)
         _active = SmtpEmailProvider(
-            host=getattr(s, "smtp_host", ""),
+            host=getattr(s, "smtp_host", "") or "",
             port=int(getattr(s, "smtp_port", 587)),
-            username=getattr(s, "smtp_username", ""),
-            password=getattr(s, "smtp_password", ""),
+            username=getattr(s, "smtp_username", "") or "",
+            password=smtp_pw.get_secret_value() if smtp_pw else "",
             use_tls=bool(getattr(s, "smtp_use_tls", True)),
-            from_address=getattr(s, "email_from_address", ""),
-            from_name=getattr(s, "email_from_name", "Tuitional Finance"),
+            from_address=getattr(s, "email_from_address", "") or "",
+            from_name=getattr(s, "email_from_name", "Tuitional Finance") or "Tuitional Finance",
         )
     else:
         # Fallback for sendgrid/ses (Phase 6 implements)

@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 
 from src.agents import sanctions as sanctions_agent
-from src.api.dependencies import db_session, require_cfo, require_session
+from src.api.dependencies import db_session, require_cfo, require_fa, require_session
 from src.ledger.coa import get_active_coa
 from src.ledger.subledger import build_default_registry
 
@@ -72,7 +72,7 @@ def list_requests(
 def fa_decide(
     request_id: int,
     payload: DecidePayload,
-    session=Depends(require_session),
+    session=Depends(require_fa),
     db=Depends(db_session),
 ) -> dict:
     sanctions_agent.fa_decide(

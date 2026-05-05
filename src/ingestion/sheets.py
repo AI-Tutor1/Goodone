@@ -32,6 +32,39 @@ class MockSheetsAdapter:
         return list(self._rows)
 
 
+class GenericSheetsAdapter:
+    """Reads any tab from a Google Sheet, returning rows as dicts keyed by header.
+
+    Used by the bulk-upload ingestion endpoint for sessions and enrollments.
+    Credentials come from the same service account JSON as ``GoogleSheetsAdapter``.
+    """
+
+    def __init__(self, *, sa_json_path: str, spreadsheet_id: str) -> None:
+        self._sa_json_path = sa_json_path
+        self._spreadsheet_id = spreadsheet_id
+
+    def fetch_rows(self, tab_name: str) -> list[dict[str, str]]:
+        from google.oauth2 import service_account  # type: ignore[import-untyped]
+        from googleapiclient.discovery import build  # type: ignore[import-untyped]
+
+        creds = service_account.Credentials.from_service_account_file(
+            self._sa_json_path,
+            scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"],
+        )
+        service = build("sheets", "v4", credentials=creds, cache_discovery=False)
+        result = (
+            service.spreadsheets()
+            .values()
+            .get(spreadsheetId=self._spreadsheet_id, range=f"{tab_name}!A:Z")
+            .execute()
+        )
+        rows: list[list[str]] = result.get("values", [])
+        if not rows:
+            return []
+        header = [c.strip().lower() for c in rows[0]]
+        return [dict(zip(header, row, strict=False)) for row in rows[1:]]
+
+
 class GoogleSheetsAdapter:
     """Real Google Sheets adapter.
 

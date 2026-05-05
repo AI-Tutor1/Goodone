@@ -49,7 +49,7 @@ db-down:
 migrate:
 	$(ALEMBIC) upgrade head
 
-APP_PORT ?= 3002
+APP_PORT ?= 3001
 
 .PHONY: api
 api:

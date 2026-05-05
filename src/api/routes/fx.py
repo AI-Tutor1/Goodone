@@ -47,6 +47,39 @@ def list_rates(
     return [dict(r._mapping) for r in rows]
 
 
+@router.get("/rates/history")
+def rate_history(
+    base: str = "AED",
+    quote: str = "PKR",
+    from_date: str | None = Query(default=None, alias="from", description="YYYY-MM-DD"),
+    to_date: str | None = Query(default=None, alias="to", description="YYYY-MM-DD"),
+    session=Depends(require_session),
+    db=Depends(db_session),
+) -> list[dict]:
+    filters = "WHERE base = :b AND quote = :q"
+    params: dict = {"b": base, "q": quote}
+    if from_date:
+        filters += " AND date >= :from_date"
+        params["from_date"] = from_date
+    if to_date:
+        filters += " AND date <= :to_date"
+        params["to_date"] = to_date
+    rows = db.execute(
+        text(
+            f"""
+            SELECT DISTINCT ON (date)
+                   date, base, quote, rate::text, source
+            FROM   master.fx_rates
+            {filters}
+            ORDER  BY date ASC,
+                      CASE source WHEN 'manual' THEN 0 ELSE 1 END
+            """
+        ),
+        params,
+    ).all()
+    return [dict(r._mapping) for r in rows]
+
+
 @router.post("/override")
 def override(
     payload: OverridePayload,

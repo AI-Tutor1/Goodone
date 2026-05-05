@@ -12,7 +12,9 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import text
 
+from src.core.config import get_settings
 from src.core.money import aed
+from src.email.provider import EmailMessageOut, get_email_provider
 from src.ledger.posting import (
     JournalEntryDraft,
     JournalLineDraft,
@@ -60,6 +62,13 @@ def fa_decide(session: Session, *, request_id: int, approve: bool, by: str) -> N
         {"s": new_status, "id": request_id},
     )
     _audit(session, request_id, "FA_DECIDE", by, ok=approve)
+    _notify_sanction(
+        request_id=request_id,
+        subject=f"Sanction #{request_id}: FA {'approved' if approve else 'rejected'} — {'awaiting CFO' if approve else 'closed'}",
+        body=f"FA ({by}) {'approved' if approve else 'rejected'} sanction request #{request_id}.\n"
+             + ("The request is now pending CFO review." if approve else "The request is now closed."),
+        to_cfo=approve,
+    )
 
 
 def cfo_decide(
@@ -85,6 +94,12 @@ def cfo_decide(
     if row is None:
         raise RuntimeError(f"sanction {request_id} is not in PENDING_CFO")
     _audit(session, request_id, "CFO_DECIDE", by, ok=approve)
+    _notify_sanction(
+        request_id=request_id,
+        subject=f"Sanction #{request_id}: CFO {'approved' if approve else 'rejected'}",
+        body=f"CFO ({by}) {'approved' if approve else 'rejected'} sanction request #{request_id}.",
+        to_cfo=False,
+    )
     if not approve:
         return None
     amount = aed(row.amount_aed)
@@ -174,6 +189,28 @@ def post_spend(
         sub_ledgers=sub_ledgers,
     )
     return reversal, expense
+
+
+def _notify_sanction(
+    *,
+    request_id: int,
+    subject: str,
+    body: str,
+    to_cfo: bool,
+) -> None:
+    """Fire-and-forget email; swallows errors so they never break the workflow."""
+    try:
+        s = get_settings()
+        recipients: list[str] = []
+        if to_cfo and getattr(s, "cfo_email", None):
+            recipients.append(s.cfo_email)  # type: ignore[arg-type]
+        elif not to_cfo and getattr(s, "fa_email", None):
+            recipients.append(s.fa_email)  # type: ignore[arg-type]
+        if not recipients:
+            return
+        get_email_provider().send(EmailMessageOut(to=recipients, subject=subject, body_text=body))
+    except Exception:
+        pass  # email failures must never abort a financial transaction
 
 
 def _audit(

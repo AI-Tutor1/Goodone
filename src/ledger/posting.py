@@ -218,6 +218,52 @@ def post_journal(
     )
 
 
+def post_journal_idempotent(
+    session: Session,
+    draft: JournalEntryDraft,
+    *,
+    coa: COA,
+    sub_ledgers: SubLedgerRegistry | None = None,
+) -> tuple[PostedJournal, bool]:
+    """Like post_journal, but safe to re-run.
+
+    If a JE with the same source_ref already exists (duplicate detected via the
+    partial unique index), returns the existing PostedJournal with ``skipped=True``.
+    Otherwise posts normally and returns ``skipped=False``.
+
+    The caller never needs to roll back on a duplicate — this function leaves the
+    transaction in a clean state in both paths.
+    """
+    if draft.source_ref is not None:
+        row = session.execute(
+            text(
+                "SELECT je_id, date, period, total_debit_aed, posted_at "
+                "FROM ledger.journal_entries WHERE source_ref = :ref LIMIT 1"
+            ),
+            {"ref": draft.source_ref},
+        ).one_or_none()
+        if row is not None:
+            line_ids = [
+                r.line_id
+                for r in session.execute(
+                    text("SELECT line_id FROM ledger.journal_lines WHERE je_id = :je_id ORDER BY line_id"),
+                    {"je_id": row.je_id},
+                ).all()
+            ]
+            return (
+                PostedJournal(
+                    je_id=row.je_id,
+                    date=row.date,
+                    period=row.period,
+                    total_aed=aed(row.total_debit_aed),
+                    line_ids=line_ids,
+                    posted_at=row.posted_at,
+                ),
+                True,
+            )
+    return post_journal(session, draft, coa=coa, sub_ledgers=sub_ledgers), False
+
+
 def reverse_journal(
     session: Session,
     je_id: int,

@@ -12,6 +12,14 @@ const NAV = [
   { to: "/period-close", label: "Period Close" },
   { to: "/fx", label: "FX Rates" },
   { to: "/chat", label: "Chat" },
+  { to: "/upload/sessions", label: "Upload Sessions" },
+  { to: "/payroll/payouts", label: "Payouts" },
+  { to: "/budget", label: "Budget" },
+  { to: "/master-data", label: "Master Data" },
+  { to: "/data-quality", label: "Data Quality" },
+  { to: "/ingestion/lms", label: "LMS Sync" },
+  { to: "/ingestion/bank", label: "Bank Recon" },
+  { to: "/settings", label: "Settings" },
 ];
 
 export function Layout() {
@@ -44,7 +52,7 @@ export function Layout() {
               to={item.to}
               end={item.to === "/"}
               className={({ isActive }) =>
-                `px-3 py-2 text-sm font-medium border-b-2 -mb-px ${
+                `px-3 py-2 text-sm font-medium border-b-2 -mb-px whitespace-nowrap ${
                   isActive
                     ? "border-accent-500 text-accent-600"
                     : "border-transparent text-ink-700 hover:text-ink-900"

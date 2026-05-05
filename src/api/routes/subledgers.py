@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import text
 
 from src.api.dependencies import db_session, require_session
@@ -11,7 +11,12 @@ router = APIRouter(prefix="/subledgers", tags=["subledgers"])
 
 
 @router.get("/wallets")
-def student_wallets(session=Depends(require_session), db=Depends(db_session)) -> list[dict]:
+def student_wallets(
+    limit: int = Query(default=100, le=500),
+    skip: int = Query(default=0, ge=0),
+    session=Depends(require_session),
+    db=Depends(db_session),
+) -> dict:
     rows = db.execute(
         text(
             """
@@ -25,14 +30,21 @@ def student_wallets(session=Depends(require_session), db=Depends(db_session)) ->
                    ON e.student_id = s.student_id
             GROUP  BY s.student_id, s.display_id, s.name
             ORDER  BY s.display_id
-            """,
+            LIMIT  :limit OFFSET :skip
+            """
         ),
+        {"limit": limit, "skip": skip},
     ).all()
-    return [dict(row._mapping) for row in rows]
+    return {"wallets": [dict(row._mapping) for row in rows], "limit": limit, "skip": skip}
 
 
 @router.get("/tutor-payables")
-def tutor_payables(session=Depends(require_session), db=Depends(db_session)) -> list[dict]:
+def tutor_payables(
+    limit: int = Query(default=100, le=500),
+    skip: int = Query(default=0, ge=0),
+    session=Depends(require_session),
+    db=Depends(db_session),
+) -> dict:
     rows = db.execute(
         text(
             """
@@ -43,14 +55,21 @@ def tutor_payables(session=Depends(require_session), db=Depends(db_session)) -> 
             LEFT JOIN subledger.tutor_payable_entries e ON e.tutor_id = t.tutor_id
             GROUP  BY t.tutor_id, t.display_id, t.name, t.payment_currency
             ORDER  BY t.display_id
-            """,
+            LIMIT  :limit OFFSET :skip
+            """
         ),
+        {"limit": limit, "skip": skip},
     ).all()
-    return [dict(row._mapping) for row in rows]
+    return {"tutor_payables": [dict(row._mapping) for row in rows], "limit": limit, "skip": skip}
 
 
 @router.get("/fixed-assets")
-def fixed_assets(session=Depends(require_session), db=Depends(db_session)) -> list[dict]:
+def fixed_assets(
+    limit: int = Query(default=100, le=500),
+    skip: int = Query(default=0, ge=0),
+    session=Depends(require_session),
+    db=Depends(db_session),
+) -> dict:
     rows = db.execute(
         text(
             """
@@ -65,14 +84,21 @@ def fixed_assets(session=Depends(require_session), db=Depends(db_session)) -> li
             GROUP  BY a.asset_id, a.asset_class, a.description, a.cost_aed,
                       a.useful_life_months, a.purchase_date, a.status
             ORDER  BY a.asset_id
-            """,
+            LIMIT  :limit OFFSET :skip
+            """
         ),
+        {"limit": limit, "skip": skip},
     ).all()
-    return [dict(row._mapping) for row in rows]
+    return {"fixed_assets": [dict(row._mapping) for row in rows], "limit": limit, "skip": skip}
 
 
 @router.get("/prepaids")
-def prepaids(session=Depends(require_session), db=Depends(db_session)) -> list[dict]:
+def prepaids(
+    limit: int = Query(default=100, le=500),
+    skip: int = Query(default=0, ge=0),
+    session=Depends(require_session),
+    db=Depends(db_session),
+) -> dict:
     rows = db.execute(
         text(
             """
@@ -87,7 +113,9 @@ def prepaids(session=Depends(require_session), db=Depends(db_session)) -> list[d
             GROUP  BY p.prepaid_id, p.account_code, p.description, p.total_aed,
                       p.total_months, p.start_date
             ORDER  BY p.prepaid_id
-            """,
+            LIMIT  :limit OFFSET :skip
+            """
         ),
+        {"limit": limit, "skip": skip},
     ).all()
-    return [dict(row._mapping) for row in rows]
+    return {"prepaids": [dict(row._mapping) for row in rows], "limit": limit, "skip": skip}

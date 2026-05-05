@@ -22,13 +22,15 @@ def require_session(
 
 
 def require_cfo(session: Session = Depends(require_session)) -> Session:
-    """Restrict to the CFO role.
-
-    Phase 5 has only the CFO persona; this is here so future roles slot in
-    without rewriting every route.
-    """
     if session.role != "cfo":
         raise HTTPException(status_code=403, detail="cfo role required")
+    return session
+
+
+def require_fa(session: Session = Depends(require_session)) -> Session:
+    """FA or CFO can call FA-gated routes (CFO can always override)."""
+    if session.role not in ("fa", "cfo"):
+        raise HTTPException(status_code=403, detail="fa role required")
     return session
 
 
