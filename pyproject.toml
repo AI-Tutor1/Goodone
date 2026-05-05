@@ -106,8 +106,8 @@ ignore = [
 "tests/**" = ["S101", "S105", "S106"]
 "migrations/versions/*.py" = ["E501"]  # alembic-generated DDL lines run long
 "src/api/*.py" = ["UP017", "B008"]      # 3.10 timezone alias + FastAPI Depends in defaults
-"src/api/routes/*.py" = ["B008"]        # FastAPI Depends idiom
-"src/chat/*.py" = ["UP017"]             # 3.10 timezone alias compat
+"src/api/routes/*.py" = ["B008", "S608", "B904"]  # FastAPI Depends; dynamic-but-parameterized SQL; HTTPException chains
+"src/chat/*.py" = ["UP017", "UP037"]    # 3.10 timezone alias compat; quoted forward-refs are intentional
 
 [tool.mypy]
 python_version = "3.11"

@@ -70,7 +70,10 @@ def resolve_quarantine(
     db=Depends(db_session),
 ) -> dict:
     row = db.execute(
-        text("SELECT quarantine_id, status FROM staging.data_quality_quarantine WHERE quarantine_id = :id"),
+        text(
+            "SELECT quarantine_id, status FROM staging.data_quality_quarantine "
+            "WHERE quarantine_id = :id"
+        ),
         {"id": quarantine_id},
     ).one_or_none()
     if row is None:

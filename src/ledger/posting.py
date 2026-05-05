@@ -246,7 +246,10 @@ def post_journal_idempotent(
             line_ids = [
                 r.line_id
                 for r in session.execute(
-                    text("SELECT line_id FROM ledger.journal_lines WHERE je_id = :je_id ORDER BY line_id"),
+                    text(
+                        "SELECT line_id FROM ledger.journal_lines "
+                        "WHERE je_id = :je_id ORDER BY line_id"
+                    ),
                     {"je_id": row.je_id},
                 ).all()
             ]

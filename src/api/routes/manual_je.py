@@ -70,7 +70,7 @@ def _resolve_attachment_url(attachment_id: int | None, db) -> str | None:
     if row is None:
         raise HTTPException(
             status_code=404,
-            detail=f"attachment_id {attachment_id} not found — upload the file first via POST /uploads",
+            detail=f"attachment_id {attachment_id} not found — upload via POST /uploads first",
         )
     return row.stored_path
 

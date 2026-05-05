@@ -81,10 +81,7 @@ def get_session(
     _session=Depends(require_session),
     db=Depends(db_session),
 ) -> dict:
-    if _use_pg():
-        sess = get_pg_store().get(sid, db=db)
-    else:
-        sess = get_default_store().get(sid)
+    sess = get_pg_store().get(sid, db=db) if _use_pg() else get_default_store().get(sid)
     if sess is None:
         raise HTTPException(status_code=404, detail=f"unknown chat session: {sid}")
     return {

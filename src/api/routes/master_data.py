@@ -52,13 +52,16 @@ def create_student(
     try:
         row = db.execute(
             text(
-                "INSERT INTO master.students (display_id, name) VALUES (:did, :name) RETURNING student_id"
+                "INSERT INTO master.students (display_id, name) "
+                "VALUES (:did, :name) RETURNING student_id"
             ),
             {"did": payload.display_id, "name": payload.name},
         ).one()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=409, detail=f"display_id '{payload.display_id}' already exists")
+        raise HTTPException(
+            status_code=409, detail=f"display_id '{payload.display_id}' already exists"
+        )
     db.commit()
     return {"student_id": row.student_id, "display_id": payload.display_id, "name": payload.name}
 
@@ -137,7 +140,9 @@ def create_tutor(
         ).one()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=409, detail=f"display_id '{payload.display_id}' already exists")
+        raise HTTPException(
+            status_code=409, detail=f"display_id '{payload.display_id}' already exists"
+        )
     db.commit()
     return {"tutor_id": row.tutor_id, "display_id": payload.display_id, "name": payload.name}
 
@@ -325,7 +330,10 @@ def update_enrollment(
         params["end_date"] = payload.end_date
     if not sets:
         raise HTTPException(status_code=400, detail="nothing to update")
-    db.execute(text(f"UPDATE master.enrollments SET {', '.join(sets)} WHERE enrollment_id = :id"), params)
+    db.execute(
+        text(f"UPDATE master.enrollments SET {', '.join(sets)} WHERE enrollment_id = :id"),
+        params,
+    )
     db.commit()
     return {"enrollment_id": enrollment_id, "updated": True}
 

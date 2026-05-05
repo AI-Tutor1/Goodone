@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import csv
 import io
-from datetime import date, datetime
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
@@ -76,6 +76,7 @@ async def disburse_payroll(
     registry = build_default_registry()
 
     from decimal import Decimal
+
     from src.core.money import aed
 
     disbursed = 0
@@ -210,7 +211,10 @@ def disbursement_export(
     output = io.StringIO()
     writer = csv.DictWriter(
         output,
-        fieldnames=["tutor_id", "display_id", "name", "payment_currency", "amount_aed", "amount_original"],
+        fieldnames=[
+            "tutor_id", "display_id", "name",
+            "payment_currency", "amount_aed", "amount_original",
+        ],
     )
     writer.writeheader()
     for r in rows:

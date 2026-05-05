@@ -25,7 +25,7 @@ _backup_running = False
 
 @router.get("/backups")
 def list_backups(session=Depends(require_cfo)) -> dict:
-    settings = get_settings()
+    get_settings()
     backup_dir = Path(os.environ.get("BACKUP_DIR", str(_REPO_ROOT / "backups")))
     if not backup_dir.exists():
         return {"backups": [], "backup_dir": str(backup_dir)}
@@ -55,8 +55,8 @@ def trigger_backup(session=Depends(require_cfo)) -> dict:
 
     _backup_running = True
     try:
-        result = subprocess.run(
-            ["bash", str(_BACKUP_SCRIPT)],
+        result = subprocess.run(  # noqa: S603
+            ["/bin/bash", str(_BACKUP_SCRIPT)],
             capture_output=True,
             text=True,
             timeout=300,

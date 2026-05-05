@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import io
 from dataclasses import asdict
-from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 
@@ -47,9 +46,11 @@ def _simple_html(title: str, headers: list[str], rows: list[dict]) -> str:
     for row in rows:
         td = "".join(f"<td>{row.get(h, '')}</td>" for h in headers)
         body += f"<tr>{td}</tr>"
+    style = "table{border-collapse:collapse}th,td{border:1px solid #ccc;padding:4px}"
     return (
-        f"<html><head><style>table{{border-collapse:collapse}}th,td{{border:1px solid #ccc;padding:4px}}</style></head>"
-        f"<body><h2>{title}</h2><table><thead><tr>{th}</tr></thead><tbody>{body}</tbody></table></body></html>"
+        f"<html><head><style>{style}</style></head>"
+        f"<body><h2>{title}</h2><table><thead><tr>{th}</tr></thead>"
+        f"<tbody>{body}</tbody></table></body></html>"
     )
 
 
@@ -209,7 +210,7 @@ def trial_balance(
     return StreamingResponse(
         iter([content]),
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=trial-balance-{period or 'all'}.pdf"},
+        headers={"Content-Disposition": f"attachment; filename=trial-balance-{period or 'all'}.pdf"},  # noqa: E501
     )
 
 
@@ -360,7 +361,8 @@ def cash_flow(
         text(
             """
             SELECT COALESCE(
-                SUM(CASE WHEN jl.account_code LIKE '4%' THEN jl.credit_aed - jl.debit_aed ELSE 0 END) -
+                SUM(CASE WHEN jl.account_code LIKE '4%'
+                         THEN jl.credit_aed - jl.debit_aed ELSE 0 END) -
                 SUM(CASE WHEN jl.account_code LIKE '5%' OR jl.account_code LIKE '6%'
                          THEN jl.debit_aed - jl.credit_aed ELSE 0 END),
             0)::text AS net_income

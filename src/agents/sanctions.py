@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import text
 
 from src.core.config import get_settings
+from src.core.logging import get_logger
 from src.core.money import aed
 from src.email.provider import EmailMessageOut, get_email_provider
 from src.ledger.posting import (
@@ -25,6 +26,7 @@ from src.ledger.posting import (
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+logger = get_logger("agents.sanctions")
 
 # ---------------------------------------------------------------------------
 # Workflow
@@ -62,11 +64,14 @@ def fa_decide(session: Session, *, request_id: int, approve: bool, by: str) -> N
         {"s": new_status, "id": request_id},
     )
     _audit(session, request_id, "FA_DECIDE", by, ok=approve)
+    fa_action = "approved" if approve else "rejected"
+    cfo_status = "awaiting CFO" if approve else "closed"
     _notify_sanction(
-        request_id=request_id,
-        subject=f"Sanction #{request_id}: FA {'approved' if approve else 'rejected'} — {'awaiting CFO' if approve else 'closed'}",
-        body=f"FA ({by}) {'approved' if approve else 'rejected'} sanction request #{request_id}.\n"
-             + ("The request is now pending CFO review." if approve else "The request is now closed."),
+        subject=f"Sanction #{request_id}: FA {fa_action} — {cfo_status}",
+        body=(
+            f"FA ({by}) {fa_action} sanction request #{request_id}.\n"
+            + ("Pending CFO review." if approve else "Request closed.")
+        ),
         to_cfo=approve,
     )
 
@@ -94,10 +99,10 @@ def cfo_decide(
     if row is None:
         raise RuntimeError(f"sanction {request_id} is not in PENDING_CFO")
     _audit(session, request_id, "CFO_DECIDE", by, ok=approve)
+    cfo_action = "approved" if approve else "rejected"
     _notify_sanction(
-        request_id=request_id,
-        subject=f"Sanction #{request_id}: CFO {'approved' if approve else 'rejected'}",
-        body=f"CFO ({by}) {'approved' if approve else 'rejected'} sanction request #{request_id}.",
+        subject=f"Sanction #{request_id}: CFO {cfo_action}",
+        body=f"CFO ({by}) {cfo_action} sanction request #{request_id}.",
         to_cfo=False,
     )
     if not approve:
@@ -193,7 +198,6 @@ def post_spend(
 
 def _notify_sanction(
     *,
-    request_id: int,
     subject: str,
     body: str,
     to_cfo: bool,
@@ -210,7 +214,7 @@ def _notify_sanction(
             return
         get_email_provider().send(EmailMessageOut(to=recipients, subject=subject, body_text=body))
     except Exception:
-        pass  # email failures must never abort a financial transaction
+        logger.debug("email notification failed — swallowed to protect financial workflow")
 
 
 def _audit(

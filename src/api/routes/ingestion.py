@@ -14,7 +14,6 @@ means re-uploading the same session_id is a safe no-op (counted as skipped).
 
 from __future__ import annotations
 
-import csv
 import io
 from datetime import date, datetime, timezone
 
@@ -66,7 +65,9 @@ def _read_file_rows(file: UploadFile, content: bytes) -> list[dict[str, str]]:
         header = [str(c).strip().lower() if c is not None else "" for c in rows_iter[0]]
         result = []
         for row in rows_iter[1:]:
-            result.append({header[i]: (str(v).strip() if v is not None else "") for i, v in enumerate(row)})
+            result.append(
+                {header[i]: (str(v).strip() if v is not None else "") for i, v in enumerate(row)}
+            )
         return result
     # Default: CSV
     text_content = content.decode("utf-8-sig", errors="replace")
@@ -98,7 +99,9 @@ def _insert_upload_record(db, batch: str, source_kind: str, filename: str, uploa
     return row.upload_id
 
 
-def _finalise_upload(db, upload_id: int, accepted: int, skipped: int, quarantined: int, status: str = "done") -> None:
+def _finalise_upload(
+    db, upload_id: int, accepted: int, skipped: int, quarantined: int, status: str = "done"
+) -> None:
     db.execute(
         text(
             """
@@ -157,7 +160,11 @@ def _post_session(db, payload: SessionPayload, actor: str) -> tuple[int | None, 
     """
     from decimal import Decimal
 
-    from src.agents.payroll import PayrollComputation, PayrollContext, build_accrual_draft, compute_payment
+    from src.agents.payroll import (
+        PayrollContext,
+        build_accrual_draft,
+        compute_payment,
+    )
     from src.agents.revenue import build_revenue_draft
     from src.core.money import ZERO_AED
     from src.ledger.coa import get_active_coa
@@ -343,7 +350,9 @@ async def upload_sessions(
         raise HTTPException(status_code=400, detail="file contains no data rows")
 
     batch = batch_id(content.decode("utf-8-sig", errors="replace"), source="sessions")
-    upload_id = _insert_upload_record(db, batch, "sessions", file.filename or "upload", session.user_id)
+    upload_id = _insert_upload_record(
+        db, batch, "sessions", file.filename or "upload", session.user_id
+    )
 
     accepted, skipped, quarantined, errors = _process_session_rows(rows, db, session.user_id, batch)
     _finalise_upload(db, upload_id, accepted, skipped, quarantined)
@@ -415,7 +424,9 @@ def upload_sessions_from_sheets(
 # Enrollment upload
 # ---------------------------------------------------------------------------
 
-REQUIRED_ENROLLMENT_COLUMNS = {"student_id", "tutor_id", "subject", "grade", "curriculum", "start_date"}
+REQUIRED_ENROLLMENT_COLUMNS = {
+    "student_id", "tutor_id", "subject", "grade", "curriculum", "start_date"
+}
 
 
 @router.post("/enrollments")
