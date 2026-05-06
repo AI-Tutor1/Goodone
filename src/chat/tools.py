@@ -91,7 +91,7 @@ def _get_account_balance(session: Session, args: dict[str, Any]) -> dict[str, An
         "JOIN   ledger.journal_entries je ON je.je_id = jl.je_id "
         "WHERE  jl.account_code = :code "
         "  AND  je.status = 'POSTED' "
-        "  AND  (:as_of IS NULL OR je.effective_date <= :as_of)"
+        "  AND  (CAST(:as_of AS date) IS NULL OR je.effective_date <= CAST(:as_of AS date))"
     )
     row = session.execute(text(sql), {"code": code, "as_of": as_of}).one()
     return cast(
@@ -136,7 +136,7 @@ def _get_trial_balance(session: Session, args: dict[str, Any]) -> dict[str, Any]
         "FROM   ledger.journal_lines jl "
         "JOIN   ledger.journal_entries je ON je.je_id = jl.je_id "
         "WHERE  je.status = 'POSTED' "
-        "  AND  (:p IS NULL OR je.period = :p)"
+        "  AND  (CAST(:p AS text) IS NULL OR je.period = :p)"
     )
     row = session.execute(text(sql), {"p": str(period) if period else None}).one()
     diff = row.total_dr - row.total_cr

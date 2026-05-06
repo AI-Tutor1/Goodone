@@ -49,7 +49,7 @@ def per_enrollment(session: Session, *, period: str | None = None) -> list[Enrol
         FROM   ledger.journal_lines jl
         JOIN   ledger.journal_entries je ON je.je_id = jl.je_id
         WHERE  je.status = 'POSTED'
-          AND  (:p IS NULL OR je.period = :p)
+          AND  (CAST(:p AS text) IS NULL OR je.period = :p)
           AND  jl.dimensions ? 'enrollment_id'
         GROUP  BY (jl.dimensions->>'enrollment_id')
         HAVING COALESCE(SUM(jl.debit_aed) + SUM(jl.credit_aed), 0) > 0

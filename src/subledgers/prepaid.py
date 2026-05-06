@@ -113,7 +113,7 @@ class PrepaidSubLedger:
                     "FROM ledger.journal_lines jl "
                     "JOIN ledger.journal_entries je ON je.je_id = jl.je_id "
                     "WHERE jl.account_code = ANY(:codes) "
-                    "AND (:as_of IS NULL OR je.date <= :as_of)",
+                    "AND (CAST(:as_of AS date) IS NULL OR je.date <= CAST(:as_of AS date))",
                 ),
                 {"codes": list(_PREPAID_ACCOUNTS), "as_of": as_of},
             ).scalar_one(),

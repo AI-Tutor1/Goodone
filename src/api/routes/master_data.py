@@ -357,8 +357,8 @@ def list_enrollments(
             FROM master.enrollments e
             JOIN master.students s ON s.student_id = e.student_id
             JOIN master.tutors t ON t.tutor_id = e.tutor_id
-            WHERE (:student_id IS NULL OR e.student_id = :student_id)
-              AND (:tutor_id IS NULL OR e.tutor_id = :tutor_id)
+            WHERE (CAST(:student_id AS bigint) IS NULL OR e.student_id = :student_id)
+              AND (CAST(:tutor_id AS bigint) IS NULL OR e.tutor_id = :tutor_id)
             ORDER BY e.enrollment_id DESC
             LIMIT :limit OFFSET :skip
             """

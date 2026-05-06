@@ -123,7 +123,8 @@ class TutorPayableSubLedger:
                 text(
                     "SELECT COALESCE(SUM(delta_aed), 0) "
                     "FROM subledger.tutor_payable_entries "
-                    "WHERE (:as_of IS NULL OR effective_date <= :as_of)",
+                    "WHERE (CAST(:as_of AS date) IS NULL "
+                    "OR effective_date <= CAST(:as_of AS date))",
                 ),
                 {"as_of": as_of},
             ).scalar_one(),
@@ -134,7 +135,8 @@ class TutorPayableSubLedger:
                 text(
                     "SELECT tutor_id, COALESCE(SUM(delta_aed), 0) AS delta "
                     "FROM subledger.tutor_payable_entries "
-                    "WHERE (:as_of IS NULL OR effective_date <= :as_of) "
+                    "WHERE (CAST(:as_of AS date) IS NULL "
+                    "OR effective_date <= CAST(:as_of AS date)) "
                     "GROUP BY tutor_id",
                 ),
                 {"as_of": as_of},

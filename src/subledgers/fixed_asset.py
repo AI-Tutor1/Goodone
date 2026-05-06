@@ -106,7 +106,7 @@ class FixedAssetSubLedger:
                 "SELECT COALESCE(SUM(monthly_amount_aed), 0) "
                 "FROM assets.fixed_asset_depreciation_entries "
                 "WHERE asset_id = :id "
-                "AND (:as_of IS NULL OR created_at::date <= :as_of)",
+                "AND (CAST(:as_of AS date) IS NULL OR created_at::date <= CAST(:as_of AS date))",
             ),
             {"id": int(key), "as_of": as_of},
         ).scalar_one()
@@ -133,7 +133,8 @@ class FixedAssetSubLedger:
                 text(
                     "SELECT COALESCE(SUM(monthly_amount_aed), 0) "
                     "FROM assets.fixed_asset_depreciation_entries "
-                    "WHERE (:as_of IS NULL OR created_at::date <= :as_of)",
+                    "WHERE (CAST(:as_of AS date) IS NULL "
+                    "OR created_at::date <= CAST(:as_of AS date))",
                 ),
                 {"as_of": as_of},
             ).scalar_one(),

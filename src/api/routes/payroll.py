@@ -252,8 +252,8 @@ def disbursement_history(
                    d.created_at
             FROM subledger.tutor_disbursements d
             JOIN master.tutors t ON t.tutor_id = d.tutor_id
-            WHERE (:tutor_id IS NULL OR d.tutor_id = :tutor_id)
-              AND (:period IS NULL OR d.period = :period)
+            WHERE (CAST(:tutor_id AS bigint) IS NULL OR d.tutor_id = :tutor_id)
+              AND (CAST(:period AS text) IS NULL OR d.period = :period)
             ORDER BY d.disbursement_id DESC
             LIMIT :limit OFFSET :skip
             """

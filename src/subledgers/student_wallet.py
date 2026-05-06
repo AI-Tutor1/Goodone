@@ -52,7 +52,7 @@ class StudentWalletSubLedger:
                     delta_aed, type
                 ) VALUES (
                     :student_id, :je_id, :line_id, :period, :effective_date,
-                    :delta_aed, CAST(:type AS subledger.wallet_entry_type)
+                    :delta_aed, CAST(:type AS wallet_entry_type)
                 )
                 """,
             ),
@@ -107,7 +107,8 @@ class StudentWalletSubLedger:
                 text(
                     "SELECT COALESCE(SUM(delta_aed), 0) "
                     "FROM subledger.student_wallet_entries "
-                    "WHERE (:as_of IS NULL OR effective_date <= :as_of)",
+                    "WHERE (CAST(:as_of AS date) IS NULL "
+                    "OR effective_date <= CAST(:as_of AS date))",
                 ),
                 {"as_of": as_of},
             ).scalar_one(),
@@ -118,7 +119,8 @@ class StudentWalletSubLedger:
                 text(
                     "SELECT student_id, COALESCE(SUM(delta_aed), 0) AS delta "
                     "FROM subledger.student_wallet_entries "
-                    "WHERE (:as_of IS NULL OR effective_date <= :as_of) "
+                    "WHERE (CAST(:as_of AS date) IS NULL "
+                    "OR effective_date <= CAST(:as_of AS date)) "
                     "GROUP BY student_id",
                 ),
                 {"as_of": as_of},

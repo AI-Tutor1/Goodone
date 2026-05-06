@@ -39,9 +39,9 @@ def list_quarantine(
             SELECT quarantine_id, source, source_ref, severity, status,
                    raw_row, error_detail, resolution, created_at, resolved_at
             FROM staging.data_quality_quarantine
-            WHERE (:source IS NULL OR source = :source)
-              AND (:severity IS NULL OR severity = :severity)
-              AND (:status IS NULL OR status = :status)
+            WHERE (CAST(:source AS text) IS NULL OR source = :source)
+              AND (CAST(:severity AS text) IS NULL OR severity = :severity)
+              AND (CAST(:status AS text) IS NULL OR status = :status)
             ORDER BY quarantine_id DESC
             LIMIT :limit OFFSET :skip
             """

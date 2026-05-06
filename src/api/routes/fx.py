@@ -66,8 +66,8 @@ def rate_history(
             FROM   master.fx_rates
             WHERE  base = :b
               AND  quote = :q
-              AND  (:from_date IS NULL OR date >= :from_date)
-              AND  (:to_date IS NULL OR date <= :to_date)
+              AND  (CAST(:from_date AS date) IS NULL OR date >= CAST(:from_date AS date))
+              AND  (CAST(:to_date AS date) IS NULL OR date <= CAST(:to_date AS date))
             ORDER  BY date ASC,
                       CASE source WHEN 'manual' THEN 0 ELSE 1 END
             """

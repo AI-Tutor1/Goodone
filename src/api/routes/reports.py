@@ -182,7 +182,7 @@ def trial_balance(
             FROM ledger.journal_lines jl
             JOIN ledger.journal_entries je ON je.je_id = jl.je_id
             LEFT JOIN master.chart_of_accounts coa ON coa.code = jl.account_code
-            WHERE (:period IS NULL OR je.period = :period)
+            WHERE (CAST(:period AS text) IS NULL OR je.period = :period)
             GROUP BY jl.account_code, coa.name
             ORDER BY jl.account_code
             """
@@ -313,7 +313,7 @@ def tutor_productivity(
             FROM master.sessions ms
             JOIN master.enrollments e ON e.enrollment_id = ms.enrollment_id
             JOIN master.tutors t ON t.tutor_id = e.tutor_id
-            WHERE (:period IS NULL OR ms.period = :period)
+            WHERE (CAST(:period AS text) IS NULL OR ms.period = :period)
             GROUP BY t.tutor_id, t.display_id, t.name
             ORDER BY penalty_sessions DESC
             """
