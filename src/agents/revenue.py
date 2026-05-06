@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from typing import TYPE_CHECKING, Any
 
 from src.core.money import ZERO_AED, aed
 from src.ledger.posting import (
@@ -13,6 +14,9 @@ from src.ledger.posting import (
     PostedJournal,
     post_journal,
 )
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 @dataclass(frozen=True)
@@ -63,11 +67,11 @@ def build_revenue_draft(ctx: RevenueContext) -> JournalEntryDraft | None:
 
 
 def post_revenue(
-    session,
+    session: Session,
     ctx: RevenueContext,
     *,
-    coa,
-    sub_ledgers,
+    coa: Any,
+    sub_ledgers: Any,
 ) -> PostedJournal | None:
     draft = build_revenue_draft(ctx)
     if draft is None:
@@ -76,15 +80,15 @@ def post_revenue(
 
 
 def post_topup(
-    session,
+    session: Session,
     *,
     student_id: int,
     amount_aed: Decimal,
     posting_date: date,
     posted_by: str,
     source_ref: str | None = None,
-    coa,
-    sub_ledgers,
+    coa: Any,
+    sub_ledgers: Any,
 ) -> PostedJournal:
     """Convenience entry point: wallet top-up via cash."""
     return post_journal(

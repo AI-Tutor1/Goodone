@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from typing import Any
 
 from fastapi import Cookie, Depends, HTTPException
 
@@ -34,7 +35,7 @@ def require_fa(session: Session = Depends(require_session)) -> Session:
     return session
 
 
-def db_session() -> Iterator:
+def db_session() -> Iterator[Any]:
     """Yield a transactional SQLAlchemy session bound to the app engine."""
     from sqlalchemy.orm import Session as _Session
 

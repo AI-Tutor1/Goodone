@@ -28,9 +28,9 @@ _CONTROL_ACCOUNTS = ("2020", "2030")
 
 
 class TutorPayableSubLedger:
-    name = SubLedgerName.TUTOR_PAYABLE
-    control_accounts = _CONTROL_ACCOUNTS
-    key_field = "tutor_id"
+    name: SubLedgerName = SubLedgerName.TUTOR_PAYABLE
+    control_accounts: tuple[str, ...] = _CONTROL_ACCOUNTS
+    key_field: str = "tutor_id"
 
     def apply_line(
         self,

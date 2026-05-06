@@ -12,7 +12,7 @@ takes an optional ``db`` (SQLAlchemy Session). In-memory callers pass
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import text
 
@@ -28,9 +28,7 @@ class PostgresChatSessionStore:
     def create(self, *, user_id: str, db: "Session") -> ChatSession:
         sid = uuid.uuid4().hex[:12]
         db.execute(
-            text(
-                "INSERT INTO audit.chat_sessions (session_id, user_id) VALUES (:sid, :uid)"
-            ),
+            text("INSERT INTO audit.chat_sessions (session_id, user_id) VALUES (:sid, :uid)"),
             {"sid": sid, "uid": user_id},
         )
         db.commit()
@@ -38,9 +36,7 @@ class PostgresChatSessionStore:
 
     def get(self, sid: str, *, db: "Session") -> ChatSession | None:
         row = db.execute(
-            text(
-                "SELECT session_id, created_at FROM audit.chat_sessions WHERE session_id = :sid"
-            ),
+            text("SELECT session_id, created_at FROM audit.chat_sessions WHERE session_id = :sid"),
             {"sid": sid},
         ).one_or_none()
         if row is None:
@@ -72,6 +68,7 @@ class PostgresChatSessionStore:
 
     def append(self, sid: str, msg: ChatMessage, *, db: "Session") -> None:
         import json
+
         db.execute(
             text(
                 """
@@ -92,13 +89,11 @@ class PostgresChatSessionStore:
 
     def list_ids(self, *, db: "Session") -> list[str]:
         rows = db.execute(
-            text(
-                "SELECT session_id FROM audit.chat_sessions ORDER BY created_at DESC LIMIT 100"
-            )
+            text("SELECT session_id FROM audit.chat_sessions ORDER BY created_at DESC LIMIT 100")
         ).all()
         return [r.session_id for r in rows]
 
-    def list_sessions(self, *, db: "Session") -> list[dict]:
+    def list_sessions(self, *, db: "Session") -> list[dict[str, Any]]:
         rows = db.execute(
             text(
                 """

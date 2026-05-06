@@ -16,11 +16,13 @@ from __future__ import annotations
 
 import io
 from datetime import date, datetime, timezone
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from src.api.dependencies import db_session, require_session
 from src.core.config import get_settings
@@ -78,7 +80,9 @@ def _period_for_date(occurred_on: str) -> str:
     return occurred_on[:7]  # "YYYY-MM-DD"[:7] = "YYYY-MM"
 
 
-def _insert_upload_record(db, batch: str, source_kind: str, filename: str, uploaded_by: str) -> int:
+def _insert_upload_record(
+    db: Any, batch: str, source_kind: str, filename: str, uploaded_by: str
+) -> int:
     row = db.execute(
         text(
             """
@@ -96,11 +100,11 @@ def _insert_upload_record(db, batch: str, source_kind: str, filename: str, uploa
         },
     ).one()
     db.commit()
-    return row.upload_id
+    return int(row.upload_id)
 
 
 def _finalise_upload(
-    db, upload_id: int, accepted: int, skipped: int, quarantined: int, status: str = "done"
+    db: Any, upload_id: int, accepted: int, skipped: int, quarantined: int, status: str = "done"
 ) -> None:
     db.execute(
         text(
@@ -124,7 +128,9 @@ def _finalise_upload(
     db.commit()
 
 
-def _quarantine_row(db, source: str, batch: str, raw: dict, errors: list[str]) -> None:
+def _quarantine_row(
+    db: Any, source: str, batch: str, raw: dict[str, Any], errors: list[str]
+) -> None:
     db.execute(
         text(
             """
@@ -142,18 +148,15 @@ def _quarantine_row(db, source: str, batch: str, raw: dict, errors: list[str]) -
     )
 
 
-def _session_already_posted(db, session_id: str) -> bool:
+def _session_already_posted(db: Any, session_id: str) -> bool:
     row = db.execute(
-        text(
-            "SELECT 1 FROM ledger.journal_entries "
-            "WHERE source_ref = :ref LIMIT 1"
-        ),
+        text("SELECT 1 FROM ledger.journal_entries WHERE source_ref = :ref LIMIT 1"),
         {"ref": f"SES-{session_id}-REV"},
     ).one_or_none()
     return row is not None
 
 
-def _post_session(db, payload: SessionPayload, actor: str) -> tuple[int | None, int | None]:
+def _post_session(db: Any, payload: SessionPayload, actor: str) -> tuple[int | None, int | None]:
     """Post revenue + payroll JEs for one session. Returns (revenue_je_id, payroll_je_id).
 
     Imports lazily to avoid circular deps at module load time.
@@ -165,7 +168,7 @@ def _post_session(db, payload: SessionPayload, actor: str) -> tuple[int | None, 
         build_accrual_draft,
         compute_payment,
     )
-    from src.agents.revenue import build_revenue_draft
+    from src.agents.revenue import RevenueContext, build_revenue_draft
     from src.core.money import ZERO_AED
     from src.ledger.coa import get_active_coa
     from src.ledger.posting import post_journal
@@ -228,17 +231,17 @@ def _post_session(db, payload: SessionPayload, actor: str) -> tuple[int | None, 
 
     # Revenue JE
     if enr.student_rate_aed and Decimal(str(enr.student_rate_aed)) > ZERO_AED:
-        rev_draft = build_revenue_draft(
-            session_id=payload.session_id,
-            enrollment_id=payload.enrollment_id,
-            student_id=enr.student_id,
-            status=payload.status,
-            student_rate_aed=Decimal(str(enr.student_rate_aed)),
-            scheduled_minutes=payload.scheduled_minutes,
-            conducted_minutes=payload.conducted_minutes,
+        rate_aed = Decimal(str(enr.student_rate_aed))
+        charge_aed = rate_aed * Decimal(str(payload.conducted_minutes)) / Decimal("60")
+        rev_ctx = RevenueContext(
+            session_id=str(payload.session_id),
+            enrollment_id=int(payload.enrollment_id),
+            student_id=int(enr.student_id),
             posting_date=posting_date,
-            period=period,
+            student_charge_aed=charge_aed,
+            is_student_absent=payload.status == "student_absent",
         )
+        rev_draft = build_revenue_draft(rev_ctx)
         if rev_draft:
             posted_rev = post_journal(db, rev_draft, coa=coa, sub_ledgers=registry)
             revenue_je_id = posted_rev.je_id
@@ -292,13 +295,13 @@ def _post_session(db, payload: SessionPayload, actor: str) -> tuple[int | None, 
 
 def _process_session_rows(
     rows: list[dict[str, str]],
-    db,
+    db: Any,
     actor: str,
     batch: str,
-) -> tuple[int, int, int, list[dict]]:
+) -> tuple[int, int, int, list[dict[str, Any]]]:
     """Returns (accepted, skipped, quarantined, error_list)."""
     accepted = skipped = quarantined = 0
-    errors: list[dict] = []
+    errors: list[dict[str, Any]] = []
 
     for i, row in enumerate(rows):
         try:
@@ -337,9 +340,9 @@ def _process_session_rows(
 @router.post("/sessions")
 async def upload_sessions(
     file: UploadFile,
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     """Upload a CSV or XLSX of sessions. Idempotent — duplicate session_ids are skipped."""
     content = await file.read()
     if not content:
@@ -382,9 +385,9 @@ class GoogleSheetsSessionBody(BaseModel):
 @router.post("/sessions/google-sheets")
 def upload_sessions_from_sheets(
     body: GoogleSheetsSessionBody,
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     """Pull sessions from a Google Sheet tab and run the same ingestion pipeline."""
     settings = get_settings()
     if not settings.google_service_account_json_path:
@@ -393,6 +396,7 @@ def upload_sessions_from_sheets(
             detail="GOOGLE_SERVICE_ACCOUNT_JSON_PATH is not configured",
         )
     from src.ingestion.sheets import GenericSheetsAdapter
+
     adapter = GenericSheetsAdapter(
         sa_json_path=settings.google_service_account_json_path,
         spreadsheet_id=body.spreadsheet_id,
@@ -425,16 +429,21 @@ def upload_sessions_from_sheets(
 # ---------------------------------------------------------------------------
 
 REQUIRED_ENROLLMENT_COLUMNS = {
-    "student_id", "tutor_id", "subject", "grade", "curriculum", "start_date"
+    "student_id",
+    "tutor_id",
+    "subject",
+    "grade",
+    "curriculum",
+    "start_date",
 }
 
 
 @router.post("/enrollments")
 async def upload_enrollments(
     file: UploadFile,
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     """Upload a CSV or XLSX of enrollments. Upserts: creates if new, skips if existing."""
     content = await file.read()
     if not content:
@@ -450,7 +459,7 @@ async def upload_enrollments(
     )
 
     accepted = skipped = quarantined = 0
-    errors: list[dict] = []
+    errors: list[dict[str, Any]] = []
 
     for i, row in enumerate(rows):
         missing = REQUIRED_ENROLLMENT_COLUMNS - set(row.keys())
@@ -517,9 +526,9 @@ async def upload_enrollments(
 @router.post("/bank-statement")
 async def upload_bank_statement(
     file: UploadFile,
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     """Upload a bank statement CSV. Matches transactions against GL account 1010
     and returns matched / unmatched counts with a net difference."""
     content = await file.read()
@@ -537,6 +546,7 @@ async def upload_bank_statement(
 
     # Sum bank movements
     from decimal import Decimal
+
     bank_total = sum(t.amount_aed for t in txns)
 
     # Sum GL cash account (1010) movements for the date range in the file
@@ -586,9 +596,9 @@ async def upload_bank_statement(
 @router.get("/lms/sync-status")
 def lms_sync_status(
     limit: int = Query(default=20, le=100),
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     """Return the last N LMS polling runs."""
     rows = db.execute(
         text(
@@ -624,9 +634,9 @@ def lms_sync_status(
 
 @router.post("/lms/sync-now")
 def lms_sync_now(
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     """Trigger an immediate LMS poll. Uses the date of the last successful sync
     as the ``since`` parameter; falls back to 30 days ago if no prior sync."""
     settings = get_settings()
@@ -644,19 +654,19 @@ def lms_sync_now(
         )
     ).one_or_none()
     from datetime import timedelta
+
     since_date: date = last.since_date if last else (date.today() - timedelta(days=30))
 
     # Insert sync log record
     sync_row = db.execute(
-        text(
-            "INSERT INTO staging.lms_sync_log (since_date) VALUES (:d) RETURNING sync_id"
-        ),
+        text("INSERT INTO staging.lms_sync_log (since_date) VALUES (:d) RETURNING sync_id"),
         {"d": since_date},
     ).one()
     sync_id = sync_row.sync_id
     db.commit()
 
     from src.ingestion.lms import LmsHttpAdapter
+
     adapter = LmsHttpAdapter(
         base_url=settings.lms_api_base_url,
         api_key=settings.lms_api_key.get_secret_value() if settings.lms_api_key else "",

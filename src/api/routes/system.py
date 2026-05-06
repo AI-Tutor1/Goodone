@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import subprocess
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -24,7 +25,7 @@ _backup_running = False
 
 
 @router.get("/backups")
-def list_backups(session=Depends(require_cfo)) -> dict:
+def list_backups(session: Any = Depends(require_cfo)) -> dict[str, Any]:
     get_settings()
     backup_dir = Path(os.environ.get("BACKUP_DIR", str(_REPO_ROOT / "backups")))
     if not backup_dir.exists():
@@ -46,7 +47,7 @@ def list_backups(session=Depends(require_cfo)) -> dict:
 
 
 @router.post("/backups/trigger")
-def trigger_backup(session=Depends(require_cfo)) -> dict:
+def trigger_backup(session: Any = Depends(require_cfo)) -> dict[str, Any]:
     global _backup_running
     if _backup_running:
         raise HTTPException(status_code=409, detail="a backup is already running")

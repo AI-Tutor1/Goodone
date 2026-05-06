@@ -25,9 +25,9 @@ if TYPE_CHECKING:
 
 
 class StudentWalletSubLedger:
-    name = SubLedgerName.STUDENT_WALLET
-    control_accounts = ("2050",)
-    key_field = "student_id"
+    name: SubLedgerName = SubLedgerName.STUDENT_WALLET
+    control_accounts: tuple[str, ...] = ("2050",)
+    key_field: str = "student_id"
 
     # ---- protocol methods -------------------------------------------------
 

@@ -7,9 +7,12 @@ POST /quarantine/{id}/reprocess          — re-validate and attempt to re-post 
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from src.api.dependencies import db_session, require_session
 
@@ -27,11 +30,11 @@ def list_quarantine(
     status: str | None = Query(default="OPEN"),
     limit: int = Query(default=100, le=500),
     skip: int = Query(default=0, ge=0),
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     filters = "WHERE 1=1"
-    params: dict = {"limit": limit, "skip": skip}
+    params: dict[str, Any] = {"limit": limit, "skip": skip}
     if source is not None:
         filters += " AND source = :source"
         params["source"] = source
@@ -66,9 +69,9 @@ def list_quarantine(
 def resolve_quarantine(
     quarantine_id: int,
     payload: ResolvePayload,
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     row = db.execute(
         text(
             "SELECT quarantine_id, status FROM staging.data_quality_quarantine "
@@ -98,9 +101,9 @@ def resolve_quarantine(
 @router.post("/{quarantine_id}/reprocess")
 def reprocess_quarantine(
     quarantine_id: int,
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     """Re-validate the raw row. If it passes, marks as RESOLVED; otherwise updates error_detail."""
     row = db.execute(
         text(

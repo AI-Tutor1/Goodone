@@ -31,9 +31,9 @@ _ALL = _COST_ACCOUNTS + _ACCUM_ACCOUNTS
 
 
 class FixedAssetSubLedger:
-    name = SubLedgerName.FIXED_ASSET
-    control_accounts = _ALL
-    key_field = "asset_id"
+    name: SubLedgerName = SubLedgerName.FIXED_ASSET
+    control_accounts: tuple[str, ...] = _ALL
+    key_field: str = "asset_id"
 
     def apply_line(
         self,

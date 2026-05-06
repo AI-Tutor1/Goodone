@@ -23,6 +23,7 @@ Run via ``make api`` (port 3002 by default).
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any
@@ -59,7 +60,7 @@ logger = get_logger("api")
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI):
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     settings = get_settings()
     # Ensure the file-upload directory exists on every startup (dev + prod).
     settings.attachments_dir.mkdir(parents=True, exist_ok=True)
@@ -214,8 +215,8 @@ def coa_get(code: str) -> dict[str, Any]:
 
 @app.get("/reconcile")
 def reconcile_all(
-    session=Depends(require_session),
-    db=Depends(db_session),
+    session: Any = Depends(require_session),
+    db: Any = Depends(db_session),
 ) -> dict[str, Any]:
     registry = build_default_registry()
     out: dict[str, Any] = {}

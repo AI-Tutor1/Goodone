@@ -28,9 +28,9 @@ _PREPAID_ACCOUNTS = ("1051", "1052")
 
 
 class PrepaidSubLedger:
-    name = SubLedgerName.PREPAID
-    control_accounts = _PREPAID_ACCOUNTS
-    key_field = "prepaid_id"
+    name: SubLedgerName = SubLedgerName.PREPAID
+    control_accounts: tuple[str, ...] = _PREPAID_ACCOUNTS
+    key_field: str = "prepaid_id"
 
     def apply_line(
         self,

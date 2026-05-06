@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import text
 
@@ -77,8 +77,8 @@ def revalue_unrealized(
     *,
     posting_date: date,
     closing_rate_aed_per_pkr: Decimal,  # AED for one PKR
-    coa,
-    sub_ledgers,
+    coa: Any,
+    sub_ledgers: Any,
 ) -> list[PostedJournal]:
     """Post one JE per tutor whose AED-equivalent has shifted from booked.
 
@@ -158,8 +158,8 @@ def post_payment(
     *,
     posting_date: date,
     payouts: list[PayoutLine],
-    coa,
-    sub_ledgers,
+    coa: Any,
+    sub_ledgers: Any,
 ) -> PostedJournal:
     """Post one consolidated payout JE: Dr 2020 / Cr 1010 + (Dr/Cr 7010)."""
     accrued_total = sum((aed(p.accrued_aed) for p in payouts), start=ZERO_AED)

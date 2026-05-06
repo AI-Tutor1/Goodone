@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -22,7 +23,7 @@ class RuleResult:
     field: str | None = None
 
 
-Rule = Callable[[dict], RuleResult]
+Rule = Callable[[dict[str, Any]], RuleResult]
 
 
 @dataclass
@@ -36,7 +37,7 @@ class RuleSet:
         self.rules.append(rule)
         return self
 
-    def evaluate(self, payload: dict) -> list[RuleResult]:
+    def evaluate(self, payload: dict[str, Any]) -> list[RuleResult]:
         """Return every failure (empty list on success). All rules run."""
         return [r for r in (rule(payload) for rule in self.rules) if not r.ok]
 
@@ -47,7 +48,7 @@ class RuleSet:
 
 
 def required(field_name: str) -> Rule:
-    def _rule(p: dict) -> RuleResult:
+    def _rule(p: dict[str, Any]) -> RuleResult:
         if field_name not in p or p[field_name] in (None, ""):
             return RuleResult(
                 False,
@@ -61,7 +62,7 @@ def required(field_name: str) -> Rule:
 
 
 def is_one_of(field_name: str, allowed: set[str]) -> Rule:
-    def _rule(p: dict) -> RuleResult:
+    def _rule(p: dict[str, Any]) -> RuleResult:
         v = p.get(field_name)
         if v not in allowed:
             return RuleResult(
@@ -76,8 +77,15 @@ def is_one_of(field_name: str, allowed: set[str]) -> Rule:
 
 
 def numeric_range(field_name: str, *, lo: float, hi: float) -> Rule:
-    def _rule(p: dict) -> RuleResult:
+    def _rule(p: dict[str, Any]) -> RuleResult:
         v = p.get(field_name)
+        if v is None:
+            return RuleResult(
+                False,
+                code="NOT_NUMERIC",
+                message=f"{field_name}={v!r} not numeric",
+                field=field_name,
+            )
         try:
             n = float(v)  # validation only: caller still uses Decimal in calc core
         except (TypeError, ValueError):
@@ -104,7 +112,7 @@ def regex(field_name: str, pattern: str) -> Rule:
 
     rx = _re.compile(pattern)
 
-    def _rule(p: dict) -> RuleResult:
+    def _rule(p: dict[str, Any]) -> RuleResult:
         v = p.get(field_name)
         if not isinstance(v, str) or not rx.fullmatch(v):
             return RuleResult(

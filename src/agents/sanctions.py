@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import text
 
@@ -83,8 +83,8 @@ def cfo_decide(
     approve: bool,
     by: str,
     posting_date: date,
-    coa,
-    sub_ledgers,
+    coa: Any,
+    sub_ledgers: Any,
 ) -> PostedJournal | None:
     """On approve, post the memo JE per §13. On reject, just close."""
     new_status = "APPROVED" if approve else "REJECTED"
@@ -144,8 +144,8 @@ def post_spend(
     amount_aed: Decimal,
     posting_date: date,
     by: str,
-    coa,
-    sub_ledgers,
+    coa: Any,
+    sub_ledgers: Any,
 ) -> tuple[PostedJournal, PostedJournal]:
     """Reverse the memo for *amount_aed* and post the real expense JE."""
     amount = aed(amount_aed)

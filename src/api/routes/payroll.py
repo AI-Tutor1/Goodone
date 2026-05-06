@@ -18,11 +18,13 @@ from __future__ import annotations
 import csv
 import io
 from datetime import date
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from src.api.dependencies import db_session, require_cfo, require_session
 from src.core.exceptions import LedgerError
@@ -59,9 +61,9 @@ def _read_csv_or_xlsx(filename: str, content: bytes) -> list[dict[str, str]]:
 @router.post("/disburse")
 async def disburse_payroll(
     file: UploadFile,
-    session=Depends(require_cfo),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_cfo),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     """Upload a payout sheet. Each row clears tutor payable (Dr 2020) against cash (Cr 1010)."""
     content = await file.read()
     if not content:
@@ -81,7 +83,7 @@ async def disburse_payroll(
 
     disbursed = 0
     total_aed = Decimal("0")
-    errors: list[dict] = []
+    errors: list[dict[str, Any]] = []
 
     for i, row in enumerate(rows):
         missing = required - set(row.keys())
@@ -187,8 +189,8 @@ async def disburse_payroll(
 @router.get("/disbursement-export")
 def disbursement_export(
     period: str = Query(..., description="YYYY-MM"),
-    session=Depends(require_session),
-    db=Depends(db_session),
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
 ) -> StreamingResponse:
     """Export pending tutor payables for the given period as a bank-ready CSV."""
     rows = db.execute(
@@ -212,8 +214,12 @@ def disbursement_export(
     writer = csv.DictWriter(
         output,
         fieldnames=[
-            "tutor_id", "display_id", "name",
-            "payment_currency", "amount_aed", "amount_original",
+            "tutor_id",
+            "display_id",
+            "name",
+            "payment_currency",
+            "amount_aed",
+            "amount_original",
         ],
     )
     writer.writeheader()
@@ -234,11 +240,11 @@ def disbursement_history(
     period: str | None = Query(default=None),
     limit: int = Query(default=100, le=500),
     skip: int = Query(default=0, ge=0),
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     filters = "WHERE 1=1"
-    params: dict = {"limit": limit, "skip": skip}
+    params: dict[str, Any] = {"limit": limit, "skip": skip}
     if tutor_id is not None:
         filters += " AND d.tutor_id = :tutor_id"
         params["tutor_id"] = tutor_id

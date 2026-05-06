@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from src.agents import sanctions as sanctions_agent
 from src.api.dependencies import db_session, require_cfo, require_fa, require_session
@@ -36,9 +38,9 @@ class SpendPayload(BaseModel):
 @router.post("")
 def submit(
     payload: SubmitPayload,
-    session=Depends(require_session),  # any authenticated user can submit
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_session),  # any authenticated user can submit
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     sid = sanctions_agent.submit(
         db,
         department=payload.department,
@@ -52,9 +54,9 @@ def submit(
 @router.get("")
 def list_requests(
     status: str | None = None,
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> list[dict]:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> list[dict[str, Any]]:
     sql = (
         "SELECT id, department, title, amount_aed::text, status, "
         "       created_at, created_by FROM sanctions.sanction_requests"
@@ -72,9 +74,9 @@ def list_requests(
 def fa_decide(
     request_id: int,
     payload: DecidePayload,
-    session=Depends(require_fa),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_fa),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     sanctions_agent.fa_decide(
         db, request_id=request_id, approve=payload.approve, by=session.user_id
     )
@@ -86,9 +88,9 @@ def cfo_decide(
     request_id: int,
     payload: DecidePayload,
     posting_date: date | None = None,
-    session=Depends(require_cfo),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_cfo),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     coa = get_active_coa()
     registry = build_default_registry()
     posted = sanctions_agent.cfo_decide(
@@ -110,9 +112,9 @@ def cfo_decide(
 def spend(
     request_id: int,
     payload: SpendPayload,
-    session=Depends(require_cfo),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_cfo),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     coa = get_active_coa()
     registry = build_default_registry()
     try:

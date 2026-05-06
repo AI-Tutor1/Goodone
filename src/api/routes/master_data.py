@@ -17,11 +17,13 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from src.api.dependencies import db_session, require_cfo, require_session
 
@@ -46,9 +48,9 @@ class StudentUpdate(BaseModel):
 @router.post("/students", status_code=201)
 def create_student(
     payload: StudentCreate,
-    session=Depends(require_cfo),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_cfo),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     try:
         row = db.execute(
             text(
@@ -70,11 +72,11 @@ def create_student(
 def update_student(
     student_id: int,
     payload: StudentUpdate,
-    session=Depends(require_cfo),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_cfo),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     sets = []
-    params: dict = {"id": student_id}
+    params: dict[str, Any] = {"id": student_id}
     if payload.name is not None:
         sets.append("name = :name")
         params["name"] = payload.name
@@ -92,9 +94,9 @@ def update_student(
 def list_students(
     limit: int = Query(default=100, le=500),
     skip: int = Query(default=0, ge=0),
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     rows = db.execute(
         text(
             "SELECT student_id, display_id, name, active, created_at "
@@ -124,9 +126,9 @@ class TutorUpdate(BaseModel):
 @router.post("/tutors", status_code=201)
 def create_tutor(
     payload: TutorCreate,
-    session=Depends(require_cfo),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_cfo),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     try:
         row = db.execute(
             text(
@@ -151,11 +153,11 @@ def create_tutor(
 def update_tutor(
     tutor_id: int,
     payload: TutorUpdate,
-    session=Depends(require_cfo),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_cfo),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     sets = []
-    params: dict = {"id": tutor_id}
+    params: dict[str, Any] = {"id": tutor_id}
     if payload.name is not None:
         sets.append("name = :name")
         params["name"] = payload.name
@@ -173,9 +175,9 @@ def update_tutor(
 def list_tutors(
     limit: int = Query(default=100, le=500),
     skip: int = Query(default=0, ge=0),
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     rows = db.execute(
         text(
             "SELECT tutor_id, display_id, name, payment_currency, active, created_at "
@@ -200,9 +202,9 @@ class TutorRateCreate(BaseModel):
 def add_tutor_rate(
     tutor_id: int,
     payload: TutorRateCreate,
-    session=Depends(require_cfo),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_cfo),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     if payload.rate_aed <= Decimal("0"):
         raise HTTPException(status_code=400, detail="rate_aed must be > 0")
 
@@ -216,8 +218,7 @@ def add_tutor_rate(
     # Check for exact effective_from overlap (same date).
     conflict = db.execute(
         text(
-            "SELECT 1 FROM master.tutor_hour_rates "
-            "WHERE tutor_id = :id AND effective_from = :from"
+            "SELECT 1 FROM master.tutor_hour_rates WHERE tutor_id = :id AND effective_from = :from"
         ),
         {"id": tutor_id, "from": payload.effective_from},
     ).one_or_none()
@@ -249,9 +250,9 @@ def add_tutor_rate(
 @router.get("/tutors/{tutor_id}/rates")
 def list_tutor_rates(
     tutor_id: int,
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> list[dict]:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> list[dict[str, Any]]:
     rows = db.execute(
         text(
             "SELECT rate_id, tutor_id, rate_aed::text, effective_from, effective_to, created_at "
@@ -284,9 +285,9 @@ class EnrollmentUpdate(BaseModel):
 @router.post("/enrollments", status_code=201)
 def create_enrollment(
     payload: EnrollmentCreate,
-    session=Depends(require_cfo),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_cfo),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     try:
         row = db.execute(
             text(
@@ -317,11 +318,11 @@ def create_enrollment(
 def update_enrollment(
     enrollment_id: int,
     payload: EnrollmentUpdate,
-    session=Depends(require_cfo),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_cfo),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     sets = []
-    params: dict = {"id": enrollment_id}
+    params: dict[str, Any] = {"id": enrollment_id}
     if payload.status is not None:
         sets.append("status = :status")
         params["status"] = payload.status
@@ -344,11 +345,11 @@ def list_enrollments(
     tutor_id: int | None = Query(default=None),
     limit: int = Query(default=100, le=500),
     skip: int = Query(default=0, ge=0),
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     filters = "WHERE 1=1"
-    params: dict = {"limit": limit, "skip": skip}
+    params: dict[str, Any] = {"limit": limit, "skip": skip}
     if student_id is not None:
         filters += " AND e.student_id = :student_id"
         params["student_id"] = student_id

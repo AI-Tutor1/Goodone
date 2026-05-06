@@ -16,10 +16,12 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from src.api.dependencies import db_session, require_cfo, require_session
 from src.core.exceptions import LedgerError
@@ -58,13 +60,11 @@ class ReversePayload(BaseModel):
     on_date: date | None = None
 
 
-def _resolve_attachment_url(attachment_id: int | None, db) -> str | None:
+def _resolve_attachment_url(attachment_id: int | None, db: Session) -> str | None:
     if attachment_id is None:
         return None
     row = db.execute(
-        text(
-            "SELECT stored_path FROM staging.attachments WHERE attachment_id = :id"
-        ),
+        text("SELECT stored_path FROM staging.attachments WHERE attachment_id = :id"),
         {"id": attachment_id},
     ).one_or_none()
     if row is None:
@@ -72,15 +72,15 @@ def _resolve_attachment_url(attachment_id: int | None, db) -> str | None:
             status_code=404,
             detail=f"attachment_id {attachment_id} not found — upload via POST /uploads first",
         )
-    return row.stored_path
+    return str(row.stored_path)
 
 
 @router.post("")
 def post_manual(
     payload: JournalPayload,
-    session=Depends(require_cfo),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_cfo),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     attachment_url = _resolve_attachment_url(payload.attachment_id, db)
     draft = JournalEntryDraft(
         date=payload.date,
@@ -106,8 +106,7 @@ def post_manual(
     if payload.attachment_id is not None:
         db.execute(
             text(
-                "UPDATE staging.attachments SET linked_je_id = :je_id "
-                "WHERE attachment_id = :att_id"
+                "UPDATE staging.attachments SET linked_je_id = :je_id WHERE attachment_id = :att_id"
             ),
             {"je_id": posted.je_id, "att_id": payload.attachment_id},
         )
@@ -126,9 +125,9 @@ def post_manual(
 def reverse_manual(
     je_id: int,
     payload: ReversePayload,
-    session=Depends(require_cfo),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_cfo),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     """Reverse a posted JE. The original is marked REVERSED; a new equal-and-
     opposite JE is posted with reverses_je_id pointing back to the original."""
     narration = payload.narration or f"Reversal of JE#{je_id}"

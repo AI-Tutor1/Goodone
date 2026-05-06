@@ -14,10 +14,12 @@ from __future__ import annotations
 import hashlib
 import mimetypes
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from src.api.dependencies import db_session, require_session
 from src.core.config import get_settings
@@ -44,9 +46,9 @@ def _allowed(mime: str) -> bool:
 @router.post("")
 async def upload_file(
     file: UploadFile,
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     settings = get_settings()
     max_bytes = settings.attachments_max_size_mb * 1024 * 1024
 
@@ -120,8 +122,8 @@ async def upload_file(
 @router.get("/{attachment_id}")
 def download_file(
     attachment_id: int,
-    session=Depends(require_session),
-    db=Depends(db_session),
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
 ) -> FileResponse:
     row = db.execute(
         text(

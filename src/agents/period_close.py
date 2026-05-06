@@ -21,7 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from src.agents.amortization import (
     post_intangible_amortization,
@@ -55,8 +55,8 @@ def run_pre_close(
     period: str,
     posting_date: date,
     closing_rate_aed_per_pkr: Decimal,
-    coa,
-    sub_ledgers,
+    coa: Any,
+    sub_ledgers: Any,
     tuitional_ai_intangible_id: int | None = None,
     tuitional_ai_monthly_aed: Decimal | None = None,
     intangible_amortizations: list[tuple[int, Decimal]] | None = None,
@@ -120,7 +120,7 @@ def run_close(
     *,
     period: str,
     by: str,
-    sub_ledgers,
+    sub_ledgers: Any,
 ) -> CloseResult:
     """The T+5 final lock. Reuses ``PeriodService.close``."""
     return PeriodService(sub_ledgers=sub_ledgers).close(session, period, by=by)

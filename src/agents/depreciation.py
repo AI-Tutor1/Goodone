@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import text
 
@@ -80,8 +80,8 @@ def post_monthly_depreciation(
     *,
     period: str,
     posting_date: date,
-    coa,
-    sub_ledgers,
+    coa: Any,
+    sub_ledgers: Any,
 ) -> list[PostedJournal]:
     """Post one JE per asset class for the period."""
     by_class: dict[str, list[AssetSchedule]] = {}

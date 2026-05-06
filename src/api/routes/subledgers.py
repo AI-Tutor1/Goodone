@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from src.api.dependencies import db_session, require_session
 
@@ -14,9 +17,9 @@ router = APIRouter(prefix="/subledgers", tags=["subledgers"])
 def student_wallets(
     limit: int = Query(default=100, le=500),
     skip: int = Query(default=0, ge=0),
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     rows = db.execute(
         text(
             """
@@ -42,9 +45,9 @@ def student_wallets(
 def tutor_payables(
     limit: int = Query(default=100, le=500),
     skip: int = Query(default=0, ge=0),
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     rows = db.execute(
         text(
             """
@@ -67,9 +70,9 @@ def tutor_payables(
 def fixed_assets(
     limit: int = Query(default=100, le=500),
     skip: int = Query(default=0, ge=0),
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     rows = db.execute(
         text(
             """
@@ -96,9 +99,9 @@ def fixed_assets(
 def prepaids(
     limit: int = Query(default=100, le=500),
     skip: int = Query(default=0, ge=0),
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     rows = db.execute(
         text(
             """

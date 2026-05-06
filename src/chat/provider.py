@@ -180,7 +180,7 @@ class AnthropicChatProvider:
 
     def __init__(self, *, api_key: str, model: str) -> None:
         try:
-            import anthropic  # type: ignore[import-not-found]
+            import anthropic
         except ImportError as exc:  # pragma: no cover
             msg = (
                 "anthropic SDK not installed. Add `anthropic` to pyproject.toml "

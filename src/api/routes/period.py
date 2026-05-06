@@ -5,10 +5,12 @@ from __future__ import annotations
 from dataclasses import asdict
 from datetime import date
 from decimal import Decimal
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from src.agents import period_close as pc_agent
 from src.api.dependencies import db_session, require_cfo
@@ -30,7 +32,9 @@ class ReopenPayload(BaseModel):
 
 
 @router.get("")
-def list_periods(session=Depends(require_cfo), db=Depends(db_session)) -> list[dict]:
+def list_periods(
+    session: Any = Depends(require_cfo), db: Session = Depends(db_session)
+) -> list[dict[str, Any]]:
     rows = db.execute(
         text(
             "SELECT period, status::text, opened_at, closed_at, closed_by, "
@@ -45,9 +49,9 @@ def list_periods(session=Depends(require_cfo), db=Depends(db_session)) -> list[d
 def pre_close(
     period: str,
     payload: PreClosePayload,
-    session=Depends(require_cfo),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_cfo),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     coa = get_active_coa()
     registry = build_default_registry()
     PeriodService(sub_ledgers=registry).begin_closing(db, period, by=session.user_id)
@@ -72,9 +76,9 @@ def pre_close(
 @router.post("/{period}/close")
 def close(
     period: str,
-    session=Depends(require_cfo),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_cfo),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     registry = build_default_registry()
     try:
         result = pc_agent.run_close(db, period=period, by=session.user_id, sub_ledgers=registry)
@@ -90,9 +94,9 @@ def close(
 def pre_close_preview(
     period: str,
     payload: PreClosePayload,
-    session=Depends(require_cfo),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_cfo),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     """Dry-run: runs all T+1 agents inside a SAVEPOINT that is always rolled back.
 
     Returns the list of JEs that *would* be posted without altering the GL.
@@ -128,9 +132,9 @@ def pre_close_preview(
 def reopen(
     period: str,
     payload: ReopenPayload,
-    session=Depends(require_cfo),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_cfo),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     registry = build_default_registry()
     try:
         PeriodService(sub_ledgers=registry).reopen(

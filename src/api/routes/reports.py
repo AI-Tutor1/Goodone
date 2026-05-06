@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import io
 from dataclasses import asdict
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from src.agents import profitability, reporting
 from src.api.dependencies import db_session, require_session
@@ -20,8 +22,8 @@ router = APIRouter(prefix="/reports", tags=["reports"])
 # ---------------------------------------------------------------------------
 
 
-def _to_xlsx(headers: list[str], rows: list[dict], sheet_name: str = "Report") -> bytes:
-    import openpyxl
+def _to_xlsx(headers: list[str], rows: list[dict[str, Any]], sheet_name: str = "Report") -> bytes:
+    import openpyxl  # type: ignore[import-untyped]
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -35,12 +37,12 @@ def _to_xlsx(headers: list[str], rows: list[dict], sheet_name: str = "Report") -
 
 
 def _to_pdf(html: str) -> bytes:
-    from weasyprint import HTML  # type: ignore[import-untyped]
+    from weasyprint import HTML
 
-    return HTML(string=html).write_pdf()
+    return cast(bytes, HTML(string=html).write_pdf())
 
 
-def _simple_html(title: str, headers: list[str], rows: list[dict]) -> str:
+def _simple_html(title: str, headers: list[str], rows: list[dict[str, Any]]) -> str:
     th = "".join(f"<th>{h}</th>" for h in headers)
     body = ""
     for row in rows:
@@ -63,9 +65,9 @@ def _simple_html(title: str, headers: list[str], rows: list[dict]) -> str:
 def pnl(
     period: str,
     format: str = Query(default="json", pattern="^(json|xlsx|pdf)$"),
-    session=Depends(require_session),
-    db=Depends(db_session),
-):
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> Any:
     data = asdict(reporting.profit_and_loss(db, period=period))
     if format == "json":
         return data
@@ -100,9 +102,9 @@ def pnl(
 def bs(
     as_of: str = Query(..., description="YYYY-MM-DD"),
     format: str = Query(default="json", pattern="^(json|xlsx|pdf)$"),
-    session=Depends(require_session),
-    db=Depends(db_session),
-):
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> Any:
     data = asdict(reporting.balance_sheet(db, as_of=as_of))
     if format == "json":
         return data
@@ -134,7 +136,9 @@ def bs(
 
 
 @router.get("/kpis/{period}")
-def kpis(period: str, session=Depends(require_session), db=Depends(db_session)) -> dict:
+def kpis(
+    period: str, session: Any = Depends(require_session), db: Session = Depends(db_session)
+) -> dict[str, Any]:
     return asdict(reporting.kpis(db, period=period))
 
 
@@ -148,11 +152,11 @@ def profit(
     period: str | None = None,
     limit: int = Query(default=100, le=500),
     skip: int = Query(default=0, ge=0),
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     all_rows = [asdict(p) for p in profitability.per_enrollment(db, period=period)]
-    return {"rows": all_rows[skip: skip + limit], "limit": limit, "skip": skip}
+    return {"rows": all_rows[skip : skip + limit], "limit": limit, "skip": skip}
 
 
 # ---------------------------------------------------------------------------
@@ -164,10 +168,10 @@ def profit(
 def trial_balance(
     period: str | None = Query(default=None, description="YYYY-MM (omit for all-time)"),
     format: str = Query(default="json", pattern="^(json|xlsx|pdf)$"),
-    session=Depends(require_session),
-    db=Depends(db_session),
-):
-    params: dict = {}
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> Any:
+    params: dict[str, Any] = {}
     period_filter = ""
     if period:
         period_filter = "WHERE je.period = :period"
@@ -210,7 +214,9 @@ def trial_balance(
     return StreamingResponse(
         iter([content]),
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=trial-balance-{period or 'all'}.pdf"},  # noqa: E501
+        headers={
+            "Content-Disposition": f"attachment; filename=trial-balance-{period or 'all'}.pdf"
+        },
     )
 
 
@@ -221,9 +227,9 @@ def trial_balance(
 
 @router.get("/ap-aging")
 def ap_aging(
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> list[dict]:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> list[dict[str, Any]]:
     rows = db.execute(
         text(
             """
@@ -257,9 +263,9 @@ def ap_aging(
 
 @router.get("/ar-aging")
 def ar_aging(
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> list[dict]:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> list[dict[str, Any]]:
     """Student wallet balances bucketed by last activity date.
 
     Positive balance = credit (student owes no more — company owes sessions).
@@ -295,10 +301,10 @@ def ar_aging(
 @router.get("/tutor-productivity")
 def tutor_productivity(
     period: str | None = Query(default=None, description="YYYY-MM"),
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> list[dict]:
-    params: dict = {}
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> list[dict[str, Any]]:
+    params: dict[str, Any] = {}
     period_filter = ""
     if period:
         period_filter = "AND ms.period = :period"
@@ -337,9 +343,9 @@ def tutor_productivity(
 @router.get("/cash-flow/{period}")
 def cash_flow(
     period: str,
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     params = {"period": period}
 
     def _net(account_codes: list[str]) -> str:
@@ -355,11 +361,12 @@ def cash_flow(
             ),
             params,
         ).one()
-        return row.net
+        return str(row.net)
 
-    net_income = db.execute(
-        text(
-            """
+    net_income = (
+        db.execute(
+            text(
+                """
             SELECT COALESCE(
                 SUM(CASE WHEN jl.account_code LIKE '4%'
                          THEN jl.credit_aed - jl.debit_aed ELSE 0 END) -
@@ -370,9 +377,12 @@ def cash_flow(
             JOIN ledger.journal_entries je ON je.je_id = jl.je_id
             WHERE je.period = :period
             """
-        ),
-        params,
-    ).one().net_income
+            ),
+            params,
+        )
+        .one()
+        .net_income
+    )
 
     depreciation = _net(["6510", "6520", "6530"])
     amortization = _net(["6540"])
@@ -380,17 +390,21 @@ def cash_flow(
     change_tutor_payables = _net(["2020", "2030"])
     fx_effect = _net(["7020"])
     investing = _net(["1111", "1121"])
-    financing = db.execute(
-        text(
-            """
+    financing = (
+        db.execute(
+            text(
+                """
             SELECT COALESCE(SUM(jl.credit_aed - jl.debit_aed), 0)::text AS net
             FROM ledger.journal_lines jl
             JOIN ledger.journal_entries je ON je.je_id = jl.je_id
             WHERE je.period = :period AND jl.account_code LIKE '3%'
             """
-        ),
-        params,
-    ).one().net
+            ),
+            params,
+        )
+        .one()
+        .net
+    )
 
     return {
         "period": period,

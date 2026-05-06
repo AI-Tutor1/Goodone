@@ -126,6 +126,7 @@ def parse_session_row(row: dict[str, str]) -> SessionPayload:
     occurred_on = str(row["occurred_on"]).strip()
     # Normalise YYYY-MM-DD; reject anything else.
     import re
+
     if not re.match(r"^\d{4}-(0[1-9]|1[0-2])-([0-2]\d|3[01])$", occurred_on):
         raise ValueError(f"occurred_on must be YYYY-MM-DD, got '{occurred_on}'")
 

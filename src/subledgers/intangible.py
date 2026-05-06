@@ -28,9 +28,9 @@ _ACCUM_AMORT = ("1123",)
 
 
 class IntangibleSubLedger:
-    name = SubLedgerName.INTANGIBLE
-    control_accounts = _INTANGIBLE_ACCOUNTS + _ACCUM_AMORT
-    key_field = "intangible_id"
+    name: SubLedgerName = SubLedgerName.INTANGIBLE
+    control_accounts: tuple[str, ...] = _INTANGIBLE_ACCOUNTS + _ACCUM_AMORT
+    key_field: str = "intangible_id"
 
     def apply_line(
         self,

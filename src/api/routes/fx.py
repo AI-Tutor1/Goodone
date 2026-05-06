@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from src.api.dependencies import db_session, require_cfo, require_session
 from src.ingestion.fx import manual_override
@@ -27,9 +29,9 @@ def list_rates(
     base: str = "AED",
     quote: str = "PKR",
     limit: int = 60,
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> list[dict]:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> list[dict[str, Any]]:
     rows = db.execute(
         text(
             """
@@ -53,11 +55,11 @@ def rate_history(
     quote: str = "PKR",
     from_date: str | None = Query(default=None, alias="from", description="YYYY-MM-DD"),
     to_date: str | None = Query(default=None, alias="to", description="YYYY-MM-DD"),
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> list[dict]:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> list[dict[str, Any]]:
     filters = "WHERE base = :b AND quote = :q"
-    params: dict = {"b": base, "q": quote}
+    params: dict[str, Any] = {"b": base, "q": quote}
     if from_date:
         filters += " AND date >= :from_date"
         params["from_date"] = from_date
@@ -83,9 +85,9 @@ def rate_history(
 @router.post("/override")
 def override(
     payload: OverridePayload,
-    session=Depends(require_cfo),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_cfo),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     manual_override(
         db,
         day=payload.date,

@@ -30,9 +30,9 @@ if TYPE_CHECKING:
 
 
 class SanctionMemoSubLedger:
-    name = SubLedgerName.SANCTION_MEMO
-    control_accounts = ("2060", "9010")
-    key_field = "sanction_request_id"
+    name: SubLedgerName = SubLedgerName.SANCTION_MEMO
+    control_accounts: tuple[str, ...] = ("2060", "9010")
+    key_field: str = "sanction_request_id"
 
     def apply_line(
         self,

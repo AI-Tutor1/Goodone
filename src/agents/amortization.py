@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import text
 
@@ -72,8 +72,8 @@ def post_prepaid_amortization(
     *,
     period: str,
     posting_date: date,
-    coa,
-    sub_ledgers,
+    coa: Any,
+    sub_ledgers: Any,
 ) -> list[PostedJournal]:
     posted: list[PostedJournal] = []
     for s in prepaid_schedules(session):
@@ -120,8 +120,8 @@ def post_tuitional_ai_capitalization(
     amount_aed: Decimal,
     period: str,
     posting_date: date,
-    coa,
-    sub_ledgers,
+    coa: Any,
+    sub_ledgers: Any,
 ) -> PostedJournal:
     """Reclassify monthly dev cost from 6120 to 1121 per accounting_rules.md §12b."""
     return post_journal(
@@ -155,8 +155,8 @@ def post_intangible_amortization(
     monthly_amount_aed: Decimal,
     period: str,
     posting_date: date,
-    coa,
-    sub_ledgers,
+    coa: Any,
+    sub_ledgers: Any,
 ) -> PostedJournal:
     """Post-launch monthly intangible amortization (Dr 6540 / Cr 1123)."""
     return post_journal(

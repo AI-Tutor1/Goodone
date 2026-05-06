@@ -8,7 +8,7 @@ re-ingest CLI) can resolve them later.
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import text
 
@@ -23,7 +23,7 @@ def quarantine(
     *,
     source: str,
     batch_id: str,
-    payload: dict,
+    payload: dict[str, Any],
     errors: list[RuleResult],
     affected_period: str | None = None,
 ) -> int:

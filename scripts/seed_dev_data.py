@@ -223,7 +223,11 @@ def _post_refunds(session, coa, registry, students: list[int]) -> int:
 
 
 def _post_sessions(
-    session, coa, registry, students: list[int], tutors: list[int],
+    session,
+    coa,
+    registry,
+    students: list[int],
+    tutors: list[int],
 ) -> int:
     """Post 20 conducted sessions: 19 simple + 1 canonical-penalty.
 
@@ -356,8 +360,9 @@ def _post_sessions(
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Seed Phase-2 dev/smoketest data")
-    parser.add_argument("--fast", action="store_true",
-                        help="skip the 20 session JEs (top-ups + refunds only)")
+    parser.add_argument(
+        "--fast", action="store_true", help="skip the 20 session JEs (top-ups + refunds only)"
+    )
     args = parser.parse_args(argv)
 
     engine = get_engine()

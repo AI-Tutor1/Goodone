@@ -44,10 +44,10 @@ class GenericSheetsAdapter:
         self._spreadsheet_id = spreadsheet_id
 
     def fetch_rows(self, tab_name: str) -> list[dict[str, str]]:
-        from google.oauth2 import service_account  # type: ignore[import-untyped]
-        from googleapiclient.discovery import build  # type: ignore[import-untyped]
+        from google.oauth2 import service_account
+        from googleapiclient.discovery import build
 
-        creds = service_account.Credentials.from_service_account_file(
+        creds = service_account.Credentials.from_service_account_file(  # type: ignore[no-untyped-call]
             self._sa_json_path,
             scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"],
         )
@@ -79,10 +79,10 @@ class GoogleSheetsAdapter:
         self._tab_name = tab_name
 
     def fetch_ad_spend(self) -> Iterable[AdSpendRow]:
-        from google.oauth2 import service_account  # type: ignore[import-untyped]
-        from googleapiclient.discovery import build  # type: ignore[import-untyped]
+        from google.oauth2 import service_account
+        from googleapiclient.discovery import build
 
-        creds = service_account.Credentials.from_service_account_file(
+        creds = service_account.Credentials.from_service_account_file(  # type: ignore[no-untyped-call]
             self._sa_json_path,
             scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"],
         )
@@ -96,7 +96,7 @@ class GoogleSheetsAdapter:
         )
         rows: list[list[str]] = result.get("values", [])
         if not rows:
-            return []
+            return
         header = [c.strip().lower() for c in rows[0]]
         for row in rows[1:]:
             r = dict(zip(header, row, strict=False))

@@ -17,6 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from typing import TYPE_CHECKING, Any
 
 from src.core.money import ZERO_AED, aed
 from src.ledger.posting import (
@@ -25,6 +26,9 @@ from src.ledger.posting import (
     PostedJournal,
     post_journal,
 )
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 PENALTY_THRESHOLD_MIN = 52
 PENALTY_FACTOR = Decimal("0.95")
@@ -114,12 +118,12 @@ def build_accrual_draft(
 
 
 def post_accrual(
-    session,
+    session: Session,
     ctx: PayrollContext,
     comp: PayrollComputation,
     *,
-    coa,
-    sub_ledgers,
+    coa: Any,
+    sub_ledgers: Any,
 ) -> PostedJournal | None:
     draft = build_accrual_draft(ctx, comp)
     if draft is None:

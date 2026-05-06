@@ -8,10 +8,12 @@ GET  /reports/budget-vs-actual/{period}      — compare budget to actual GL bal
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from src.api.dependencies import db_session, require_cfo, require_session
 
@@ -28,9 +30,9 @@ def upsert_budget(
     period: str,
     account_code: str,
     payload: BudgetPayload,
-    session=Depends(require_cfo),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_cfo),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     if payload.amount_aed < Decimal("0"):
         raise HTTPException(status_code=400, detail="amount_aed must be >= 0")
 
@@ -59,9 +61,9 @@ def upsert_budget(
 @router.get("/budget/{period}")
 def list_budget(
     period: str,
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> list[dict]:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> list[dict[str, Any]]:
     rows = db.execute(
         text(
             """
@@ -82,9 +84,9 @@ def list_budget(
 @router.get("/reports/budget-vs-actual/{period}")
 def budget_vs_actual(
     period: str,
-    session=Depends(require_session),
-    db=Depends(db_session),
-) -> dict:
+    session: Any = Depends(require_session),
+    db: Session = Depends(db_session),
+) -> dict[str, Any]:
     rows = db.execute(
         text(
             """

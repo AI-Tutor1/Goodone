@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 
@@ -34,7 +36,7 @@ class LoginResponse(BaseModel):
 
 
 @router.post("/login")
-def login(payload: LoginPayload, response: Response):
+def login(payload: LoginPayload, response: Response) -> Any:
     """Step 1 of authentication.
 
     When TOTP is not enforced: issues a full session cookie and returns HTTP 200.
@@ -95,7 +97,7 @@ def verify_totp(payload: TotpPayload, response: Response) -> LoginResponse:
 
 
 @router.get("/totp-setup")
-def totp_setup(session: Session = Depends(require_session)) -> dict:
+def totp_setup(session: Session = Depends(require_session)) -> dict[str, Any]:
     """Return the provisioning URI for scanning into an authenticator app.
 
     Only CFO can call this. Returns the otpauth:// URI and the raw base32 secret.
@@ -106,9 +108,7 @@ def totp_setup(session: Session = Depends(require_session)) -> dict:
     if settings.cfo_totp_secret is None:
         raise HTTPException(status_code=404, detail="CFO_TOTP_SECRET not configured")
     secret = settings.cfo_totp_secret.get_secret_value()
-    uri = pyotp.totp.TOTP(secret).provisioning_uri(
-        session.user_id, issuer_name="Tuitional Finance"
-    )
+    uri = pyotp.totp.TOTP(secret).provisioning_uri(session.user_id, issuer_name="Tuitional Finance")
     return {"provisioning_uri": uri, "secret": secret}
 
 
