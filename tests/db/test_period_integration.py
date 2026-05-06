@@ -149,6 +149,10 @@ def test_close_blocked_by_attachment_offender(
         sub_ledgers=registry,
     )
     # Now wipe BOTH attachment_url and override_reason → close must fail.
+    # The production DB check normally prevents this invalid state; this test
+    # deliberately drops it inside the per-test transaction to verify the close
+    # gate catches already-corrupt data.
+    db_session.execute(text("ALTER TABLE ledger.journal_entries DROP CONSTRAINT attachment_policy"))
     db_session.execute(
         text(
             "UPDATE ledger.journal_entries SET attachment_override_reason = NULL WHERE je_id = :id",
@@ -241,18 +245,9 @@ def test_close_blocked_by_subledger_mismatch(
     """Inject an artificial wallet entry with no GL counterpart → reconcile fail."""
     p = "2026-04"
     service.ensure_period(db_session, p)
-    db_session.execute(
-        text(
-            "INSERT INTO subledger.student_wallet_entries "
-            "(student_id, je_id, line_id, period, effective_date, delta_aed, type) "
-            "VALUES (:sid, 0, 0, :p, :d, 9999.99, 'TOPUP') "
-            "ON CONFLICT DO NOTHING",
-        ),
-        {"sid": student, "p": p, "d": date(2026, 4, 1)},
-    )
-    # The above will fail FK on je_id=0; we need a real je. Use a contrived
-    # path: post a real top-up and then add an extra sub-ledger row.
-    # Simpler path: post a balanced JE to wallet, then add a phantom row.
+    # Post a balanced JE to wallet, then add a phantom row referencing the
+    # same real JE/line so FK constraints stay intact while reconciliation
+    # still detects the sub-ledger mismatch.
     posted = post_journal(
         db_session,
         JournalEntryDraft(

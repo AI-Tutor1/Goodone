@@ -13,7 +13,7 @@
     "3020": "100000.00",
     "4010": "4400.00",
     "5010": "3436.67",
-    "5020": "95.84"
+    "5020": "-95.84"
   },
   "wallet_per_student_aed": {
     "S001": "28300.00",
@@ -29,7 +29,7 @@
       {"account_code": "2020", "debit_aed": "0.00",    "credit_aed": "1820.83"},
       {"account_code": "5020", "debit_aed": "0.00",    "credit_aed": "95.84"}
     ],
-    "_note": "Penalty arithmetic: 2500 × 46/60 = 1916.67 (ROUND_HALF_EVEN); ×0.95 = 1820.83. Penalty contra = 1916.67 − 1820.83 = 95.84. The doc example in accounting_rules.md §4 shows 95.83 rounded from 0.05×prorated, but the engine balances to the cent so 95.84 is canonical."
+    "_note": "Penalty arithmetic: 2500 × 46/60 = 1916.67 (ROUND_HALF_EVEN); ×0.95 = 1820.83. Penalty contra credit = 1916.67 − 1820.83 = 95.84. Account 5020 is credit-normal, while the balance snapshot stores 5xxx accounts as debit minus credit, so the account balance is -95.84."
   },
   "subledger_reconciliation": {
     "student_wallet": "matches",
