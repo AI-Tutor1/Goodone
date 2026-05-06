@@ -56,7 +56,7 @@ jobs:
       - name: pytest (smoketest)
         run: uv run pytest -q -m smoketest
       - name: coverage gate (≥85%)
-        run: uv run pytest --cov=src --cov-fail-under=85 -q -m "not smoketest"
+        run: uv run pytest --cov=src/ledger --cov-fail-under=85 -q -m "not smoketest"
       - name: bandit
         run: uv run bandit -r src -ll
       - name: safety (advisory)
