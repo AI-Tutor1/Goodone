@@ -53,7 +53,7 @@ class IntangibleSubLedger:
                     intangible_id, je_id, line_id, period, type, delta_aed
                 ) VALUES (
                     :intangible_id, :je_id, :line_id, :period,
-                    CAST(:type AS assets.intangible_entry_type),
+                    CAST(:type AS intangible_entry_type),
                     :delta
                 )
                 """,

@@ -56,7 +56,7 @@ class SanctionMemoSubLedger:
                 ) VALUES (
                     :request_id, :je_id, :line_id, :period,
                     :effective_date,
-                    CAST(:side AS subledger.sanction_memo_side),
+                    CAST(:side AS sanction_memo_side),
                     :delta
                 )
                 """,

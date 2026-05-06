@@ -662,7 +662,7 @@ def _write_audit(
                 ts, actor, action, target_type, target_id,
                 success, error, tag
             ) VALUES (
-                NOW(), :actor, CAST(:action AS audit.audit_action),
+                NOW(), :actor, CAST(:action AS audit_action),
                 'journal_entry', :target_id, :success, :error, :tag
             )
             """,

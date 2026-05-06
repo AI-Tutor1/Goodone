@@ -347,7 +347,7 @@ def _audit_period_action(
         text(
             "INSERT INTO audit.audit_log "
             "(ts, actor, action, target_type, target_id, success) "
-            "VALUES (NOW(), :actor, CAST(:action AS audit.audit_action), "
+            "VALUES (NOW(), :actor, CAST(:action AS audit_action), "
             "        'period', :period, true)",
         ),
         {"actor": actor, "action": action, "period": period},
