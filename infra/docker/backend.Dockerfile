@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install uv
 
 WORKDIR /app
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
 COPY migrations ./migrations
 COPY alembic.ini ./
