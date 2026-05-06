@@ -75,17 +75,18 @@ def update_student(
     session: Any = Depends(require_cfo),
     db: Session = Depends(db_session),
 ) -> dict[str, Any]:
-    sets = []
-    params: dict[str, Any] = {"id": student_id}
     if payload.name is not None:
-        sets.append("name = :name")
-        params["name"] = payload.name
+        db.execute(
+            text("UPDATE master.students SET name = :name WHERE student_id = :id"),
+            {"id": student_id, "name": payload.name},
+        )
     if payload.active is not None:
-        sets.append("active = :active")
-        params["active"] = payload.active
-    if not sets:
+        db.execute(
+            text("UPDATE master.students SET active = :active WHERE student_id = :id"),
+            {"id": student_id, "active": payload.active},
+        )
+    if payload.name is None and payload.active is None:
         raise HTTPException(status_code=400, detail="nothing to update")
-    db.execute(text(f"UPDATE master.students SET {', '.join(sets)} WHERE student_id = :id"), params)
     db.commit()
     return {"student_id": student_id, "updated": True}
 
@@ -156,17 +157,18 @@ def update_tutor(
     session: Any = Depends(require_cfo),
     db: Session = Depends(db_session),
 ) -> dict[str, Any]:
-    sets = []
-    params: dict[str, Any] = {"id": tutor_id}
     if payload.name is not None:
-        sets.append("name = :name")
-        params["name"] = payload.name
+        db.execute(
+            text("UPDATE master.tutors SET name = :name WHERE tutor_id = :id"),
+            {"id": tutor_id, "name": payload.name},
+        )
     if payload.active is not None:
-        sets.append("active = :active")
-        params["active"] = payload.active
-    if not sets:
+        db.execute(
+            text("UPDATE master.tutors SET active = :active WHERE tutor_id = :id"),
+            {"id": tutor_id, "active": payload.active},
+        )
+    if payload.name is None and payload.active is None:
         raise HTTPException(status_code=400, detail="nothing to update")
-    db.execute(text(f"UPDATE master.tutors SET {', '.join(sets)} WHERE tutor_id = :id"), params)
     db.commit()
     return {"tutor_id": tutor_id, "updated": True}
 
@@ -321,20 +323,18 @@ def update_enrollment(
     session: Any = Depends(require_cfo),
     db: Session = Depends(db_session),
 ) -> dict[str, Any]:
-    sets = []
-    params: dict[str, Any] = {"id": enrollment_id}
     if payload.status is not None:
-        sets.append("status = :status")
-        params["status"] = payload.status
+        db.execute(
+            text("UPDATE master.enrollments SET status = :status WHERE enrollment_id = :id"),
+            {"id": enrollment_id, "status": payload.status},
+        )
     if payload.end_date is not None:
-        sets.append("end_date = :end_date")
-        params["end_date"] = payload.end_date
-    if not sets:
+        db.execute(
+            text("UPDATE master.enrollments SET end_date = :end_date WHERE enrollment_id = :id"),
+            {"id": enrollment_id, "end_date": payload.end_date},
+        )
+    if payload.status is None and payload.end_date is None:
         raise HTTPException(status_code=400, detail="nothing to update")
-    db.execute(
-        text(f"UPDATE master.enrollments SET {', '.join(sets)} WHERE enrollment_id = :id"),
-        params,
-    )
     db.commit()
     return {"enrollment_id": enrollment_id, "updated": True}
 
@@ -348,29 +348,21 @@ def list_enrollments(
     session: Any = Depends(require_session),
     db: Session = Depends(db_session),
 ) -> dict[str, Any]:
-    filters = "WHERE 1=1"
-    params: dict[str, Any] = {"limit": limit, "skip": skip}
-    if student_id is not None:
-        filters += " AND e.student_id = :student_id"
-        params["student_id"] = student_id
-    if tutor_id is not None:
-        filters += " AND e.tutor_id = :tutor_id"
-        params["tutor_id"] = tutor_id
-
     rows = db.execute(
         text(
-            f"""
+            """
             SELECT e.enrollment_id, e.student_id, s.name AS student_name,
                    e.tutor_id, t.name AS tutor_name,
                    e.subject, e.rate_aed::text, e.start_date, e.end_date, e.status
             FROM master.enrollments e
             JOIN master.students s ON s.student_id = e.student_id
             JOIN master.tutors t ON t.tutor_id = e.tutor_id
-            {filters}
+            WHERE (:student_id IS NULL OR e.student_id = :student_id)
+              AND (:tutor_id IS NULL OR e.tutor_id = :tutor_id)
             ORDER BY e.enrollment_id DESC
             LIMIT :limit OFFSET :skip
             """
         ),
-        params,
+        {"student_id": student_id, "tutor_id": tutor_id, "limit": limit, "skip": skip},
     ).all()
     return {"enrollments": [dict(r._mapping) for r in rows], "limit": limit, "skip": skip}

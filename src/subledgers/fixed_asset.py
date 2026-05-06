@@ -105,9 +105,10 @@ class FixedAssetSubLedger:
             text(
                 "SELECT COALESCE(SUM(monthly_amount_aed), 0) "
                 "FROM assets.fixed_asset_depreciation_entries "
-                "WHERE asset_id = :id" + (" AND created_at::date <= :as_of" if as_of else ""),
+                "WHERE asset_id = :id "
+                "AND (:as_of IS NULL OR created_at::date <= :as_of)",
             ),
-            {"id": int(key), "as_of": as_of} if as_of else {"id": int(key)},
+            {"id": int(key), "as_of": as_of},
         ).scalar_one()
         return aed(cost_row.cost_aed) - aed(accum)
 
@@ -131,10 +132,10 @@ class FixedAssetSubLedger:
             session.execute(
                 text(
                     "SELECT COALESCE(SUM(monthly_amount_aed), 0) "
-                    "FROM assets.fixed_asset_depreciation_entries"
-                    + (" WHERE created_at::date <= :as_of" if as_of else ""),
+                    "FROM assets.fixed_asset_depreciation_entries "
+                    "WHERE (:as_of IS NULL OR created_at::date <= :as_of)",
                 ),
-                {"as_of": as_of} if as_of else {},
+                {"as_of": as_of},
             ).scalar_one(),
         )
         sub_nbv = sub_cost - sub_accum

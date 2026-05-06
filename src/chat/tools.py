@@ -83,21 +83,17 @@ def _decimal_to_str(obj: Any) -> Any:
 def _get_account_balance(session: Session, args: dict[str, Any]) -> dict[str, Any]:
     code = str(args["account_code"])
     as_of = args.get("as_of")
-    where_clause = "WHERE jl.account_code = :code AND je.status = 'POSTED'"
-    params: dict[str, Any] = {"code": code}
-    if as_of:
-        where_clause += " AND je.effective_date <= :as_of"
-        params["as_of"] = as_of
-    # `where_clause` is a literal string built above, never user input — the
-    # account_code and as_of values are bound via :code / :as_of parameters.
     sql = (
         "SELECT COALESCE(SUM(jl.debit_aed), 0)  AS dr, "
         "       COALESCE(SUM(jl.credit_aed), 0) AS cr, "
         "       COALESCE(SUM(jl.debit_aed - jl.credit_aed), 0) AS net_dr "
         "FROM   ledger.journal_lines jl "
-        "JOIN   ledger.journal_entries je ON je.je_id = jl.je_id " + where_clause
+        "JOIN   ledger.journal_entries je ON je.je_id = jl.je_id "
+        "WHERE  jl.account_code = :code "
+        "  AND  je.status = 'POSTED' "
+        "  AND  (:as_of IS NULL OR je.effective_date <= :as_of)"
     )
-    row = session.execute(text(sql), params).one()
+    row = session.execute(text(sql), {"code": code, "as_of": as_of}).one()
     return cast(
         dict[str, Any],
         _decimal_to_str(
@@ -134,20 +130,15 @@ def _get_pnl(session: Session, args: dict[str, Any]) -> dict[str, Any]:
 
 def _get_trial_balance(session: Session, args: dict[str, Any]) -> dict[str, Any]:
     period = args.get("period")
-    where = "WHERE je.status = 'POSTED'"
-    params: dict[str, Any] = {}
-    if period:
-        where += " AND je.period = :p"
-        params["p"] = str(period)
-    # Same shape as get_account_balance — the only interpolated piece is
-    # the literal ``where`` string above; the period itself is bound as :p.
     sql = (
         "SELECT COALESCE(SUM(jl.debit_aed), 0)  AS total_dr, "
         "       COALESCE(SUM(jl.credit_aed), 0) AS total_cr "
         "FROM   ledger.journal_lines jl "
-        "JOIN   ledger.journal_entries je ON je.je_id = jl.je_id " + where
+        "JOIN   ledger.journal_entries je ON je.je_id = jl.je_id "
+        "WHERE  je.status = 'POSTED' "
+        "  AND  (:p IS NULL OR je.period = :p)"
     )
-    row = session.execute(text(sql), params).one()
+    row = session.execute(text(sql), {"p": str(period) if period else None}).one()
     diff = row.total_dr - row.total_cr
     return cast(
         dict[str, Any],

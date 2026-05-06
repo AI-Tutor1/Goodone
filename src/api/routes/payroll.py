@@ -243,30 +243,22 @@ def disbursement_history(
     session: Any = Depends(require_session),
     db: Session = Depends(db_session),
 ) -> dict[str, Any]:
-    filters = "WHERE 1=1"
-    params: dict[str, Any] = {"limit": limit, "skip": skip}
-    if tutor_id is not None:
-        filters += " AND d.tutor_id = :tutor_id"
-        params["tutor_id"] = tutor_id
-    if period is not None:
-        filters += " AND d.period = :period"
-        params["period"] = period
-
     rows = db.execute(
         text(
-            f"""
+            """
             SELECT d.disbursement_id, d.tutor_id, t.name, t.display_id,
                    d.amount_aed::text, d.payment_currency,
                    d.bank_ref, d.payment_date::text, d.period, d.je_id,
                    d.created_at
             FROM subledger.tutor_disbursements d
             JOIN master.tutors t ON t.tutor_id = d.tutor_id
-            {filters}
+            WHERE (:tutor_id IS NULL OR d.tutor_id = :tutor_id)
+              AND (:period IS NULL OR d.period = :period)
             ORDER BY d.disbursement_id DESC
             LIMIT :limit OFFSET :skip
             """
         ),
-        params,
+        {"tutor_id": tutor_id, "period": period, "limit": limit, "skip": skip},
     ).all()
 
     return {

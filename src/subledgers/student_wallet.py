@@ -106,10 +106,10 @@ class StudentWalletSubLedger:
             session.execute(
                 text(
                     "SELECT COALESCE(SUM(delta_aed), 0) "
-                    "FROM subledger.student_wallet_entries"
-                    + (" WHERE effective_date <= :as_of" if as_of else ""),
+                    "FROM subledger.student_wallet_entries "
+                    "WHERE (:as_of IS NULL OR effective_date <= :as_of)",
                 ),
-                {"as_of": as_of} if as_of else {},
+                {"as_of": as_of},
             ).scalar_one(),
         )
         per_key = {
@@ -118,10 +118,10 @@ class StudentWalletSubLedger:
                 text(
                     "SELECT student_id, COALESCE(SUM(delta_aed), 0) AS delta "
                     "FROM subledger.student_wallet_entries "
-                    + ("WHERE effective_date <= :as_of " if as_of else "")
-                    + "GROUP BY student_id",
+                    "WHERE (:as_of IS NULL OR effective_date <= :as_of) "
+                    "GROUP BY student_id",
                 ),
-                {"as_of": as_of} if as_of else {},
+                {"as_of": as_of},
             ).all()
         }
         diff = gl_balance - sub_sum

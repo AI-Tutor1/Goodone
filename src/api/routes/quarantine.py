@@ -33,30 +33,26 @@ def list_quarantine(
     session: Any = Depends(require_session),
     db: Session = Depends(db_session),
 ) -> dict[str, Any]:
-    filters = "WHERE 1=1"
-    params: dict[str, Any] = {"limit": limit, "skip": skip}
-    if source is not None:
-        filters += " AND source = :source"
-        params["source"] = source
-    if severity is not None:
-        filters += " AND severity = :severity"
-        params["severity"] = severity
-    if status is not None:
-        filters += " AND status = :status"
-        params["status"] = status
-
     rows = db.execute(
         text(
-            f"""
+            """
             SELECT quarantine_id, source, source_ref, severity, status,
                    raw_row, error_detail, resolution, created_at, resolved_at
             FROM staging.data_quality_quarantine
-            {filters}
+            WHERE (:source IS NULL OR source = :source)
+              AND (:severity IS NULL OR severity = :severity)
+              AND (:status IS NULL OR status = :status)
             ORDER BY quarantine_id DESC
             LIMIT :limit OFFSET :skip
             """
         ),
-        params,
+        {
+            "source": source,
+            "severity": severity,
+            "status": status,
+            "limit": limit,
+            "skip": skip,
+        },
     ).all()
     return {
         "records": [dict(r._mapping) for r in rows],

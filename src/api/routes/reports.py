@@ -171,15 +171,9 @@ def trial_balance(
     session: Any = Depends(require_session),
     db: Session = Depends(db_session),
 ) -> Any:
-    params: dict[str, Any] = {}
-    period_filter = ""
-    if period:
-        period_filter = "WHERE je.period = :period"
-        params["period"] = period
-
     rows = db.execute(
         text(
-            f"""
+            """
             SELECT jl.account_code,
                    coa.name AS account_name,
                    SUM(jl.debit_aed)::text  AS total_debit,
@@ -188,12 +182,12 @@ def trial_balance(
             FROM ledger.journal_lines jl
             JOIN ledger.journal_entries je ON je.je_id = jl.je_id
             LEFT JOIN master.chart_of_accounts coa ON coa.code = jl.account_code
-            {period_filter}
+            WHERE (:period IS NULL OR je.period = :period)
             GROUP BY jl.account_code, coa.name
             ORDER BY jl.account_code
             """
         ),
-        params,
+        {"period": period},
     ).all()
 
     data = [dict(r._mapping) for r in rows]
@@ -304,15 +298,9 @@ def tutor_productivity(
     session: Any = Depends(require_session),
     db: Session = Depends(db_session),
 ) -> list[dict[str, Any]]:
-    params: dict[str, Any] = {}
-    period_filter = ""
-    if period:
-        period_filter = "AND ms.period = :period"
-        params["period"] = period
-
     rows = db.execute(
         text(
-            f"""
+            """
             SELECT t.tutor_id, t.display_id, t.name,
                    COUNT(*)                                                     AS total_sessions,
                    SUM(CASE WHEN ms.conducted_minutes < 52 THEN 1 ELSE 0 END)  AS penalty_sessions,
@@ -325,12 +313,12 @@ def tutor_productivity(
             FROM master.sessions ms
             JOIN master.enrollments e ON e.enrollment_id = ms.enrollment_id
             JOIN master.tutors t ON t.tutor_id = e.tutor_id
-            WHERE 1=1 {period_filter}
+            WHERE (:period IS NULL OR ms.period = :period)
             GROUP BY t.tutor_id, t.display_id, t.name
             ORDER BY penalty_sessions DESC
             """
         ),
-        params,
+        {"period": period},
     ).all()
     return [dict(r._mapping) for r in rows]
 
@@ -349,17 +337,16 @@ def cash_flow(
     params = {"period": period}
 
     def _net(account_codes: list[str]) -> str:
-        codes = ", ".join(f"'{c}'" for c in account_codes)
         row = db.execute(
             text(
-                f"""
+                """
                 SELECT COALESCE(SUM(jl.debit_aed - jl.credit_aed), 0)::text AS net
                 FROM ledger.journal_lines jl
                 JOIN ledger.journal_entries je ON je.je_id = jl.je_id
-                WHERE je.period = :period AND jl.account_code IN ({codes})
+                WHERE je.period = :period AND jl.account_code = ANY(:codes)
                 """
             ),
-            params,
+            {"period": period, "codes": account_codes},
         ).one()
         return str(row.net)
 

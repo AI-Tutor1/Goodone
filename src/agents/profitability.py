@@ -31,13 +31,8 @@ class EnrollmentProfit:
 
 def per_enrollment(session: Session, *, period: str | None = None) -> list[EnrollmentProfit]:
     """One row per enrollment that had any activity in *period* (or ever)."""
-    where = "WHERE je.status = 'POSTED'"
-    params: dict[str, object] = {}
-    if period:
-        where += " AND je.period = :p"
-        params["p"] = period
-    # `where` is a hard-coded string literal (no user input); S608 doesn't apply.
-    sql = f"""
+    params: dict[str, object] = {"p": period}
+    sql = """
         SELECT (jl.dimensions->>'enrollment_id')::bigint AS enrollment_id,
                COALESCE(SUM(
                    CASE WHEN jl.account_code IN ('4010', '4020')
@@ -53,12 +48,13 @@ def per_enrollment(session: Session, *, period: str | None = None) -> list[Enrol
                ), 0) AS direct_cost
         FROM   ledger.journal_lines jl
         JOIN   ledger.journal_entries je ON je.je_id = jl.je_id
-        {where}
+        WHERE  je.status = 'POSTED'
+          AND  (:p IS NULL OR je.period = :p)
           AND  jl.dimensions ? 'enrollment_id'
         GROUP  BY (jl.dimensions->>'enrollment_id')
         HAVING COALESCE(SUM(jl.debit_aed) + SUM(jl.credit_aed), 0) > 0
         ORDER  BY enrollment_id
-        """  # noqa: S608
+        """
     rows = session.execute(text(sql), params).all()
 
     out: list[EnrollmentProfit] = []

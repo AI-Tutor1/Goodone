@@ -112,12 +112,10 @@ class PrepaidSubLedger:
                     "SELECT COALESCE(SUM(jl.debit_aed - jl.credit_aed), 0) "
                     "FROM ledger.journal_lines jl "
                     "JOIN ledger.journal_entries je ON je.je_id = jl.je_id "
-                    "WHERE jl.account_code = ANY(:codes)"
-                    + (" AND je.date <= :as_of" if as_of else ""),
+                    "WHERE jl.account_code = ANY(:codes) "
+                    "AND (:as_of IS NULL OR je.date <= :as_of)",
                 ),
-                {"codes": list(_PREPAID_ACCOUNTS), "as_of": as_of}
-                if as_of
-                else {"codes": list(_PREPAID_ACCOUNTS)},
+                {"codes": list(_PREPAID_ACCOUNTS), "as_of": as_of},
             ).scalar_one(),
         )
         # Sub-ledger sum = sum of (total_aed) − sum of amortization entries.
