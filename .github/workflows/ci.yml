@@ -63,6 +63,7 @@ jobs:
         run: uv run safety check || true
       - name: render migration SQL
         run: |
+          mkdir -p docs/build
           DATABASE_URL=postgresql+psycopg://x:x@x/x \
             uv run alembic upgrade head --sql > docs/build/0001_initial.rendered.sql
       - uses: actions/upload-artifact@v4
